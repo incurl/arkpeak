@@ -1,0 +1,151 @@
+{
+  "$comment": [
+    "ArkPeak tile ruleset. This file is the single source of truth for what",
+    "the WFC solver may build; the solver contains no hard-coded tile logic.",
+    "",
+    "Each tile declares a connector for all six hex edges (n, ne, se, s, sw, nw),",
+    "one for the cell above it ('up') and one for the cell below it ('down').",
+    "Two tiles may touch when their facing connectors form a compatible pair:",
+    "the pair must appear in 'connectors', or one of them must be 'any'.",
+    "",
+    "Special connector values:",
+    "  any     - matches any other connector (empty plots, floors, gardens)",
+    "  nothing - matches nothing at all (a roof cannot support anything)",
+    "",
+    "Named connectors:",
+    "  wall   - a solid wall segment; meets other wall segments",
+    "  window - a glazed wall segment; meets wall and window segments",
+    "  roof   - a roof surface; meets other roof surfaces",
+    "  edge   - the border of a roof, where it meets the wall below"
+  ],
+
+  "tiles": [
+    {
+      "id": "empty",
+      "weight": 30,
+      "layer": "0",
+      "edges": { "n": "any", "ne": "any", "se": "any", "s": "any", "sw": "any", "nw": "any" },
+      "up": "nothing",
+      "down": "any",
+      "colorable": true,
+      "solid": false
+    },
+    {
+      "id": "floor",
+      "weight": 12,
+      "layer": "0",
+      "edges": { "n": "any", "ne": "any", "se": "any", "s": "any", "sw": "any", "nw": "any" },
+      "up": "nothing",
+      "down": "any",
+      "colorable": true,
+      "solid": false
+    },
+    {
+      "id": "garden",
+      "weight": 5,
+      "layer": "0",
+      "edges": { "n": "any", "ne": "any", "se": "any", "s": "any", "sw": "any", "nw": "any" },
+      "up": "nothing",
+      "down": "any",
+      "colorable": true,
+      "solid": false
+    },
+    {
+      "id": "stairs",
+      "weight": 3,
+      "layer": "0",
+      "edges": { "n": "any", "ne": "any", "se": "any", "s": "any", "sw": "any", "nw": "any" },
+      "up": "nothing",
+      "down": "any",
+      "colorable": true,
+      "solid": false
+    },
+    {
+      "id": "wall",
+      "weight": 14,
+      "layer": "0",
+      "edges": { "n": "wall", "ne": "wall", "se": "wall", "s": "wall", "sw": "wall", "nw": "wall" },
+      "up": "wall",
+      "down": "any",
+      "colorable": true,
+      "solid": true
+    },
+    {
+      "id": "window",
+      "weight": 7,
+      "layer": "0",
+      "edges": { "n": "window", "ne": "wall", "se": "wall", "s": "wall", "sw": "wall", "nw": "wall" },
+      "up": "wall",
+      "down": "any",
+      "colorable": true,
+      "solid": true
+    },
+    {
+      "id": "arch",
+      "weight": 4,
+      "layer": "0",
+      "edges": { "n": "wall", "ne": "any", "se": "any", "s": "wall", "sw": "any", "nw": "any" },
+      "up": "nothing",
+      "down": "any",
+      "colorable": true,
+      "solid": false
+    },
+    {
+      "id": "roof",
+      "weight": 6,
+      "layer": "1",
+      "edges": { "n": "roof", "ne": "roof", "se": "roof", "s": "roof", "sw": "roof", "nw": "roof" },
+      "up": "nothing",
+      "down": "wall",
+      "colorable": true,
+      "solid": true
+    },
+    {
+      "id": "roof_edge",
+      "weight": 6,
+      "layer": "1",
+      "edges": { "n": "edge", "ne": "roof", "se": "roof", "s": "edge", "sw": "roof", "nw": "roof" },
+      "up": "nothing",
+      "down": "any",
+      "colorable": true,
+      "solid": true
+    },
+    {
+      "id": "tower",
+      "weight": 3,
+      "layer": "1",
+      "edges": { "n": "wall", "ne": "wall", "se": "wall", "s": "wall", "sw": "wall", "nw": "wall" },
+      "up": "wall",
+      "down": "any",
+      "colorable": true,
+      "solid": true
+    },
+    {
+      "id": "spire",
+      "weight": 2,
+      "layer": "1",
+      "edges": { "n": "wall", "ne": "wall", "se": "wall", "s": "wall", "sw": "wall", "nw": "wall" },
+      "up": "nothing",
+      "down": "wall",
+      "colorable": true,
+      "solid": true
+    }
+  ],
+
+  "connectors": [
+    { "a": "wall", "b": "wall", "axis": "hex" },
+    { "a": "wall", "b": "window", "axis": "hex" },
+    { "a": "wall", "b": "arch", "axis": "hex" },
+    { "a": "window", "b": "arch", "axis": "hex" },
+    { "a": "roof", "b": "roof", "axis": "hex" },
+    { "a": "roof", "b": "edge", "axis": "hex" },
+    { "a": "edge", "b": "edge", "axis": "hex" },
+
+    { "a": "wall", "b": "wall", "axis": "up" },
+    { "a": "wall", "b": "tower", "axis": "up" },
+    { "a": "wall", "b": "spire", "axis": "up" },
+    { "a": "window", "b": "wall", "axis": "up" },
+    { "a": "window", "b": "tower", "axis": "up" },
+    { "a": "window", "b": "spire", "axis": "up" }
+  ]
+}
