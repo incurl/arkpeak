@@ -87,12 +87,38 @@ type ConnectorRule struct {
 	Axis Axis   `json:"axis"`
 }
 
+// PropDef is the definition of a decorative prop.
+//
+// A prop is not part of the solve: it does not occupy a cell and has no
+// connectors. It is decoration that appears on a cell of a given tile,
+// such as a tree on a garden or a lamp beside a building.
+//
+// Props are declared here so that the rules stay in one place. The
+// frontend receives them with the snapshot and decides where they go.
+type PropDef struct {
+	// ID is the stable string identifier of the prop, e.g. "tree".
+	ID string `json:"id"`
+	// Weight controls how likely the prop is to appear, relative to the
+	// other props that fit on the same tile. Must be > 0.
+	Weight int `json:"weight"`
+	// Tiles lists the tile ids the prop may appear on. A prop with no
+	// tiles never appears.
+	Tiles []string `json:"tiles"`
+	// Height is the prop's height in cells, used to scale it.
+	Height float64 `json:"height"`
+	// Scale is how much the prop's size varies from cell to cell, as a
+	// fraction. A scale of 0.2 means the prop varies by a fifth.
+	Scale float64 `json:"scale"`
+}
+
 // RulesetSchema is the on-disk representation of a ruleset.
 type RulesetSchema struct {
 	Tiles []TileDef `json:"tiles"`
 	// Connectors lists the connector pairs that may meet. It is the single
 	// source of truth for adjacency.
 	Connectors []ConnectorRule `json:"connectors"`
+	// Props lists the decorative props. They are optional.
+	Props []PropDef `json:"props"`
 }
 
 // Ruleset is a compiled, immutable set of tile rules.
@@ -222,6 +248,25 @@ func CompileRuleset(schema RulesetSchema) (*Ruleset, error) {
 		r.layerTiles[layer] = append(r.layerTiles[layer], TileID(i))
 	}
 
+	// Check the props. A prop that names a tile the ruleset does not have
+	// would silently never appear, so it is an error.
+	for i, def := range schema.Props {
+		if def.ID == "" {
+			return nil, fmt.Errorf("prop %d has an empty id", i)
+		}
+		if def.Weight <= 0 {
+			return nil, fmt.Errorf("prop %q has non-positive weight %d", def.ID, def.Weight)
+		}
+		if len(def.Tiles) == 0 {
+			return nil, fmt.Errorf("prop %q does not fit on any tile", def.ID)
+		}
+		for _, tile := range def.Tiles {
+			if _, ok := r.byID[tile]; !ok {
+				return nil, fmt.Errorf("prop %q fits on unknown tile %q", def.ID, tile)
+			}
+		}
+	}
+
 	return r, nil
 }
 
@@ -327,6 +372,16 @@ func (r *Ruleset) TileIDs() []string {
 	for i, def := range r.Tiles {
 		out[i] = def.ID
 	}
+	return out
+}
+
+// Props returns the decorative props the ruleset declares.
+//
+// The frontend receives them with the snapshot and decides where they go,
+// so that the rules stay in one place.
+func (r *Ruleset) Props() []PropDef {
+	out := make([]PropDef, len(r.schema.Props))
+	copy(out, r.schema.Props)
 	return out
 }
 

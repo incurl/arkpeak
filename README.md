@@ -11,7 +11,7 @@ The name comes from **舟山** (Zhoushan): 舟 = boat/ark, 山 = peak/mountain.
 
 ## Status
 
-Milestones 1 through 5 are complete:
+Milestones 1 through 6 are complete:
 
 - **Milestone 1 — Wails v3 scaffold.** The app builds, runs, and the service
   bindings generate cleanly.
@@ -26,8 +26,10 @@ Milestones 1 through 5 are complete:
 - **Milestone 5 — procedural geometry.** The tiles are drawn as buildings:
   walls that only show the faces they share, windows with panes, arches with
   a passage through them, and pitched roofs over the buildings.
+- **Milestone 6 — props.** The town is decorated with trees, shrubs,
+  flowers, lamps, barrels and rocks.
 
-Not yet done: props, and packaging.
+Not yet done: packaging.
 
 ### Trying it out
 
@@ -216,6 +218,25 @@ that, the whole island would be covered by a sheet of roof.
 
 The geometry is cached by tile and neighbour pattern, so the ~2300 cells of
 a town share about a hundred distinct geometries.
+
+### Props
+
+The town is decorated with props: a tree on a garden, a lamp on a floor, a
+barrel in a corridor. A prop is not part of the solve. It occupies no cell
+and has no connectors; it is decoration that appears on a cell of a given
+tile.
+
+The props are declared in the ruleset alongside the tiles, and sent to the
+frontend with the snapshot, so the rules stay in one place:
+
+```json
+{ "id": "tree", "weight": 6, "tiles": ["garden", "empty"], "height": 1.1, "scale": 0.35 }
+```
+
+Where a prop goes is decided by the cell's coordinates *and* its tile, so a
+tree stays a tree when the town is redrawn, and a cell that becomes a
+garden gets a tree rather than keeping whatever it had. The density differs
+per tile, so a garden is fuller than a corridor.
 
 ### Layers
 

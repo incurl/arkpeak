@@ -86,6 +86,25 @@ type ConnectorRule struct {
 	Axis string `json:"axis"`
 }
 
+// PropInfo describes a decorative prop the renderer may place on a cell.
+//
+// A prop is not part of the solve: it has no connectors and occupies no
+// cell. It is decoration, such as a tree on a garden.
+type PropInfo struct {
+	// ID is the stable string identifier of the prop, e.g. "tree".
+	ID string `json:"id"`
+	// Weight controls how likely the prop is to appear, relative to the
+	// other props that fit on the same tile.
+	Weight int `json:"weight"`
+	// Tiles lists the tile ids the prop may appear on.
+	Tiles []string `json:"tiles"`
+	// Height is the prop's height in cells.
+	Height float64 `json:"height"`
+	// Scale is how much the prop's size varies from cell to cell, as a
+	// fraction.
+	Scale float64 `json:"scale"`
+}
+
 // TownSnapshot is the complete state of the town, used for the initial load.
 type TownSnapshot struct {
 	// Seed is the town's deterministic seed.
@@ -104,4 +123,7 @@ type TownSnapshot struct {
 	// Connectors lists the connector pairs that may meet, so the renderer
 	// can decide which cells connect without restating the rules.
 	Connectors []ConnectorRule `json:"connectors"`
+	// Props lists the decorative props, so the renderer can decorate the
+	// town without restating the rules.
+	Props []PropInfo `json:"props"`
 }

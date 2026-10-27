@@ -18,11 +18,12 @@
 import type {
   Cell,
   GridDiff,
+  PropInfo,
   TileInfo,
   TownSnapshot,
 } from "../bindings/github.com/incurl/arkpeak/internal/town/models";
 
-export type { Cell, GridDiff, TileInfo, TownSnapshot };
+export type { Cell, GridDiff, PropInfo, TileInfo, TownSnapshot };
 
 /**
  * The six directions of a hex cell, in the order the backend uses.

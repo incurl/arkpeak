@@ -93,6 +93,7 @@ async function main(): Promise<void> {
   }
 
   scene.town.setRules(snapshot.tileInfo ?? [], snapshot.connectors ?? []);
+  scene.town.setProps(snapshot.props ?? []);
 
   hud.setStatus(
     `${snapshot.cells?.length ?? 0} cells · seed ${snapshot.seed}`,

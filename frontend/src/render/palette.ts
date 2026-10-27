@@ -92,3 +92,28 @@ export function colorByName(name: string): ColorDef {
   }
   return DEFAULT_COLOR;
 }
+
+/**
+ * The colour of a prop's part.
+ *
+ * The props are not coloured by the player, so they have their own
+ * colours. They are muted to match the rest of the town.
+ */
+export function propColor(kind: "body" | "detail", id: string): number {
+  switch (id) {
+    case "tree":
+      return kind === "body" ? 0x8a6a4f : 0x7d9a6a;
+    case "shrub":
+      return kind === "body" ? 0x8fa378 : 0x8fa378;
+    case "flower":
+      return kind === "body" ? 0x7d9a6a : 0xdba7a7;
+    case "lamp":
+      return kind === "body" ? 0x6b6257 : 0xffe9bd;
+    case "barrel":
+      return kind === "body" ? 0xa98863 : 0xa98863;
+    case "rock":
+      return kind === "body" ? 0xa9a396 : 0xa9a396;
+    default:
+      return kind === "body" ? 0x9a9184 : 0xb9ae99;
+  }
+}

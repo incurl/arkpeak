@@ -114,6 +114,9 @@ export class Scene {
     if (this.townRenderer.ground.parent !== this.scene) {
       this.scene.add(this.townRenderer.ground);
     }
+    if (this.townRenderer.props.parent !== this.scene) {
+      this.scene.add(this.townRenderer.props);
+    }
     this.water.update(_dt);
   }
 

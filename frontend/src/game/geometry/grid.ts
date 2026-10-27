@@ -86,6 +86,29 @@ export function hash3(q: number, r: number, layer: number): number {
 }
 
 /**
+ * Hashes three integers and a string into a 32-bit value.
+ *
+ * The string is mixed in last, so a cell's hash changes when its tile
+ * changes. Without that, every cell at a given position would make the
+ * same decision whatever it held.
+ */
+export function hash4(
+  q: number,
+  r: number,
+  layer: number,
+  text: string,
+): number {
+  let h = hash3(q, r, layer);
+  for (let i = 0; i < text.length; i++) {
+    h = Math.imul(h ^ text.charCodeAt(i), 16777619);
+  }
+  h ^= h >>> 15;
+  h = Math.imul(h, 2246822507);
+  h ^= h >>> 13;
+  return h >>> 0;
+}
+
+/**
  * Finds the cell nearest to a world position.
  *
  * This is the inverse of hexToWorld: it converts the world position to

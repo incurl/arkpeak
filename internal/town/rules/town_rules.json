@@ -16,7 +16,12 @@
     "  wall   - a solid wall segment; meets other wall segments",
     "  window - a glazed wall segment; meets wall and window segments",
     "  roof   - a roof surface; meets other roof surfaces",
-    "  edge   - the border of a roof, where it meets the wall below"
+    "  edge   - the border of a roof, where it meets the wall below",
+    "",
+    "Props are decoration, not part of the solve. A prop occupies no cell",
+    "and has no connectors: it is placed on a cell of one of its 'tiles',",
+    "chosen by weight. The frontend decides where a prop goes, so that the",
+    "rules stay in one place."
   ],
 
   "tiles": [
@@ -147,5 +152,14 @@
     { "a": "window", "b": "wall", "axis": "up" },
     { "a": "window", "b": "tower", "axis": "up" },
     { "a": "window", "b": "spire", "axis": "up" }
+  ],
+
+  "props": [
+    { "id": "tree", "weight": 6, "tiles": ["garden", "empty"], "height": 1.1, "scale": 0.35 },
+    { "id": "shrub", "weight": 8, "tiles": ["garden", "floor"], "height": 0.35, "scale": 0.4 },
+    { "id": "flower", "weight": 10, "tiles": ["garden"], "height": 0.18, "scale": 0.45 },
+    { "id": "lamp", "weight": 3, "tiles": ["floor", "stairs", "empty"], "height": 0.95, "scale": 0.15 },
+    { "id": "barrel", "weight": 4, "tiles": ["floor", "empty"], "height": 0.4, "scale": 0.3 },
+    { "id": "rock", "weight": 3, "tiles": ["empty", "garden"], "height": 0.22, "scale": 0.5 }
   ]
 }

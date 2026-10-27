@@ -1,13 +1,15 @@
 import * as THREE from "three";
 
 import type { TownState } from "../state";
-import type { TileInfo } from "../../types";
-import { colorByName } from "../../render/palette";
-import { HEX_DIRECTIONS, HEX_RADIUS, hexJitter, hexToWorld } from "./grid";
+import type { PropInfo, TileInfo } from "../../types";
+import { colorByName, propColor } from "../../render/palette";
+import { HEX_DIRECTIONS, HEX_RADIUS, hash4, hexJitter, hexToWorld } from "./grid";
 import { Chunk } from "./chunks";
 import { TileRules, neighbourLinks } from "./neighbours";
 import type { NeighbourLinks } from "./neighbours";
 import { buildCell, mergeParts } from "./buildings";
+import { PropRules, placeProp } from "./props";
+import { buildProp, mergePropParts } from "./propShapes";
 
 /**
  * The tile renderer.
@@ -31,6 +33,9 @@ export class TownRenderer {
   /** The group holding the island's ground. */
   public readonly ground = new THREE.Group();
 
+  /** The group holding the decorative props. */
+  public readonly props = new THREE.Group();
+
   /** The chunks, keyed by their chunk coordinate. */
   private readonly chunks = new Map<string, Chunk>();
 
@@ -46,6 +51,26 @@ export class TownRenderer {
   /** The rules the geometry is built from. */
   private rules: TileRules | null = null;
 
+  /** The rules the props are placed by. */
+  private propRules: PropRules | null = null;
+
+  /** The prop meshes, keyed by "q,r,layer". */
+  private readonly propMeshes = new Map<string, THREE.Object3D>();
+
+  /**
+   * The parts of each prop id, before they are merged.
+   *
+   * The parts are kept rather than the merged geometry, because each prop
+   * is drawn as two meshes: one for the body and one for the details.
+   */
+  private readonly propParts = new Map<
+    string,
+    { body: THREE.BufferGeometry[]; details: THREE.BufferGeometry[] }
+  >();
+
+  /** The shared material for each prop part. */
+  private readonly propMaterials = new Map<string, THREE.Material>();
+
   /** The radius of the island, in cells. */
   private radius = 0;
 
@@ -57,6 +82,13 @@ export class TownRenderer {
    */
   public setRules(tiles: readonly TileInfo[], connectors: readonly { a: string; b: string; axis: string }[]): void {
     this.rules = new TileRules(tiles, connectors);
+  }
+
+  /**
+   * Sets the props the town is decorated with.
+   */
+  public setProps(props: readonly PropInfo[]): void {
+    this.propRules = new PropRules(props);
   }
 
   /**
@@ -97,6 +129,128 @@ export class TownRenderer {
 
     chunk.rebuild(state.cellsInChunk(cq, cr));
     this.buildChunkMeshes(chunk, state);
+    this.buildChunkProps(chunk);
+  }
+
+  /**
+   * Builds the props for a chunk's cells.
+   *
+   * The prop on a cell is decided by the cell's coordinates, so it is the
+   * same every time the town is drawn. A cell that changes its tile gets
+   * a different prop, because the hash includes the tile.
+   */
+  private buildChunkProps(chunk: Chunk): void {
+    const rules = this.propRules;
+    if (rules === null) {
+      return;
+    }
+
+    for (const cell of chunk.cellList) {
+      const key = `${cell.key.q},${cell.key.r},${cell.key.layer}`;
+
+      // The hash includes the tile, so a cell that becomes a garden gets
+      // a tree rather than keeping whatever it had.
+      const hash = hash4(cell.key.q, cell.key.r, cell.key.layer, cell.tile);
+      const prop = rules.choose(cell.tile, hash);
+
+      const existing = this.propMeshes.get(key);
+      if (existing !== undefined) {
+        this.props.remove(existing);
+        this.propMeshes.delete(key);
+      }
+
+      if (prop === undefined) {
+        continue;
+      }
+
+      const placed = placeProp(prop, hash);
+      const mesh = this.buildPropMesh(prop.id, prop.height, placed);
+      if (mesh === undefined) {
+        continue;
+      }
+
+      mesh.userData.prop = prop.id;
+      mesh.userData.cell = {
+        q: cell.key.q,
+        r: cell.key.r,
+        layer: cell.key.layer,
+      };
+
+      // The prop sits on the cell, at the cell's own position.
+      const position = hexToWorld(cell.key.q, cell.key.r, cell.key.layer);
+      const jitter = hexJitter(cell.key.q, cell.key.r, cell.key.layer);
+      mesh.position.set(
+        position.x + jitter.x + placed.x,
+        position.y + jitter.y,
+        position.z + jitter.z + placed.z,
+      );
+
+      this.propMeshes.set(key, mesh);
+      this.props.add(mesh);
+    }
+  }
+
+  /**
+   * Builds the mesh for a prop.
+   *
+   * A prop has two parts, the body and the details, which are different
+   * colours. They are drawn as two meshes in a group, so a tree is two
+   * draw calls.
+   */
+  private buildPropMesh(
+    id: string,
+    height: number,
+    placed: { scale: number; rotation: number },
+  ): THREE.Object3D | undefined {
+    let parts = this.propParts.get(id);
+    if (parts === undefined) {
+      parts = buildProp(id, height);
+      this.propParts.set(id, parts);
+    }
+
+    const group = new THREE.Group();
+
+    const body = mergePropParts(parts.body);
+    if (body !== undefined) {
+      const mesh = new THREE.Mesh(body, this.propMaterial("body", id));
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      group.add(mesh);
+    }
+
+    const details = mergePropParts(parts.details);
+    if (details !== undefined) {
+      const mesh = new THREE.Mesh(details, this.propMaterial("detail", id));
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      group.add(mesh);
+    }
+
+    if (group.children.length === 0) {
+      return undefined;
+    }
+
+    group.scale.setScalar(placed.scale);
+    group.rotation.y = placed.rotation;
+    return group;
+  }
+
+  /**
+   * Returns the shared material for a prop's part.
+   */
+  private propMaterial(kind: "body" | "detail", id: string): THREE.Material {
+    const key = `${kind}:${id}`;
+    let material = this.propMaterials.get(key);
+    if (material === undefined) {
+      material = new THREE.MeshStandardMaterial({
+        color: propColor(kind, id),
+        roughness: kind === "detail" ? 0.9 : 0.8,
+        metalness: 0.0,
+        flatShading: true,
+      });
+      this.propMaterials.set(key, material);
+    }
+    return material;
   }
 
   /**

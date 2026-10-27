@@ -524,6 +524,19 @@ func (t *Town) Snapshot() TownSnapshot {
 		})
 	}
 
+	// The decorative props, so the renderer can decorate the town without
+	// restating the rules.
+	props := make([]PropInfo, 0, len(t.rules.Props()))
+	for _, prop := range t.rules.Props() {
+		props = append(props, PropInfo{
+			ID:     prop.ID,
+			Weight: prop.Weight,
+			Tiles:  prop.Tiles,
+			Height: prop.Height,
+			Scale:  prop.Scale,
+		})
+	}
+
 	return TownSnapshot{
 		Seed:       t.seed,
 		Radius:     t.radius,
@@ -531,5 +544,6 @@ func (t *Town) Snapshot() TownSnapshot {
 		Tiles:      tileIDs,
 		TileInfo:   info,
 		Connectors: connectors,
+		Props:      props,
 	}
 }

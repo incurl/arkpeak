@@ -67,6 +67,132 @@ func TestNewTownSolves(t *testing.T) {
 	}
 }
 
+// TestSnapshotDescribesTheProps checks that the props reach the frontend.
+//
+// The renderer places the props, so the snapshot has to carry them: their
+// ids, their weights, and the tiles they fit on.
+func TestSnapshotDescribesTheProps(t *testing.T) {
+	rules := testRules(t)
+	service := NewService(rules, 12345)
+
+	snapshot, err := service.NewTown(12345)
+	if err != nil {
+		t.Fatalf("NewTown: %v", err)
+	}
+
+	if len(snapshot.Props) == 0 {
+		t.Fatal("the snapshot lists no props")
+	}
+
+	byID := make(map[string]PropInfo, len(snapshot.Props))
+	for _, prop := range snapshot.Props {
+		byID[prop.ID] = prop
+	}
+
+	for _, original := range rules.Props() {
+		prop, ok := byID[original.ID]
+		if !ok {
+			t.Errorf("the prop %q is not in the snapshot", original.ID)
+			continue
+		}
+
+		if prop.Weight != original.Weight {
+			t.Errorf("the prop %q has weight %d in the snapshot, want %d",
+				original.ID, prop.Weight, original.Weight)
+		}
+		if len(prop.Tiles) != len(original.Tiles) {
+			t.Errorf("the prop %q fits on %v in the snapshot, want %v",
+				original.ID, prop.Tiles, original.Tiles)
+			continue
+		}
+		for i, tile := range original.Tiles {
+			if prop.Tiles[i] != tile {
+				t.Errorf("the prop %q fits on %v in the snapshot, want %v",
+					original.ID, prop.Tiles, original.Tiles)
+				break
+			}
+		}
+		if prop.Height != original.Height {
+			t.Errorf("the prop %q has height %v in the snapshot, want %v",
+				original.ID, prop.Height, original.Height)
+		}
+		if prop.Scale != original.Scale {
+			t.Errorf("the prop %q has scale %v in the snapshot, want %v",
+				original.ID, prop.Scale, original.Scale)
+		}
+	}
+}
+
+// TestPropsFitOnTilesThatExist checks that no prop names a tile the
+// ruleset does not have.
+//
+// Such a prop would never appear, and nothing would report it.
+func TestPropsFitOnTilesThatExist(t *testing.T) {
+	rules := testRules(t)
+
+	for _, prop := range rules.Props() {
+		if len(prop.Tiles) == 0 {
+			t.Errorf("the prop %q does not fit on any tile", prop.ID)
+		}
+		for _, tile := range prop.Tiles {
+			if _, ok := rules.Lookup(tile); !ok {
+				t.Errorf("the prop %q fits on unknown tile %q", prop.ID, tile)
+			}
+		}
+		if prop.Weight <= 0 {
+			t.Errorf("the prop %q has non-positive weight %d", prop.ID, prop.Weight)
+		}
+	}
+}
+
+// TestRulesetRejectsPropsThatFitNowhere checks that a prop with no tiles is
+// a ruleset error rather than a prop that silently never appears.
+func TestRulesetRejectsPropsThatFitNowhere(t *testing.T) {
+	schema := wfc.RulesetSchema{
+		Tiles: []wfc.TileDef{
+			{
+				ID: "empty", Weight: 10, Layer: "0",
+				Edges: map[string]string{
+					"n": "any", "ne": "any", "se": "any",
+					"s": "any", "sw": "any", "nw": "any",
+				},
+				Up: "nothing", Down: "any",
+			},
+		},
+		Props: []wfc.PropDef{
+			{ID: "tree", Weight: 1, Tiles: nil},
+		},
+	}
+
+	if _, err := wfc.CompileRuleset(schema); err == nil {
+		t.Error("expected an error for a prop that fits on no tile")
+	}
+}
+
+// TestRulesetRejectsPropsOnUnknownTiles checks that a prop naming a tile
+// the ruleset does not have is an error.
+func TestRulesetRejectsPropsOnUnknownTiles(t *testing.T) {
+	schema := wfc.RulesetSchema{
+		Tiles: []wfc.TileDef{
+			{
+				ID: "empty", Weight: 10, Layer: "0",
+				Edges: map[string]string{
+					"n": "any", "ne": "any", "se": "any",
+					"s": "any", "sw": "any", "nw": "any",
+				},
+				Up: "nothing", Down: "any",
+			},
+		},
+		Props: []wfc.PropDef{
+			{ID: "tree", Weight: 1, Tiles: []string{"dinosaur"}},
+		},
+	}
+
+	if _, err := wfc.CompileRuleset(schema); err == nil {
+		t.Error("expected an error for a prop on an unknown tile")
+	}
+}
+
 // TestSnapshotDescribesTheRules checks that the snapshot carries everything
 // the renderer needs to build neighbour-aware geometry.
 //
