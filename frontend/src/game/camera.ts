@@ -42,6 +42,23 @@ export class Camera {
     this.apply();
   }
 
+  /**
+   * Frames the camera on a hex island of the given radius.
+   *
+   * The camera starts high enough to see the whole island and close enough
+   * that the cells are readable.
+   */
+  public frameIsland(radius: number): void {
+    const span = radius * 2 + 4;
+    this.targetDistance = Math.min(Math.max(span * 1.6, 12), 70);
+    this.distance = this.targetDistance;
+    this.targetPolar = Math.PI / 4.2;
+    this.polar = this.targetPolar;
+    this.target.set(0, 0, 0);
+    this.target.y = 0;
+    this.apply();
+  }
+
   /** Attaches the pointer and wheel handlers. */
   private attach(): void {
     this.canvas.addEventListener("pointerdown", this.onPointerDown);

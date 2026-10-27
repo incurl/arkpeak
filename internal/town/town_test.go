@@ -55,8 +55,8 @@ func TestNewTownSolves(t *testing.T) {
 	if snapshot.Seed != 12345 {
 		t.Errorf("seed = %d, want 12345", snapshot.Seed)
 	}
-	if snapshot.Width <= 0 || snapshot.Height <= 0 {
-		t.Errorf("grid size = %dx%d, want a positive size", snapshot.Width, snapshot.Height)
+	if snapshot.Radius != DefaultGridRadius {
+		t.Errorf("radius = %d, want %d", snapshot.Radius, DefaultGridRadius)
 	}
 
 	// The frontend builds its palette from this list, so it must not be

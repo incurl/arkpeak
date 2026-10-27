@@ -152,9 +152,8 @@ type SaveFile struct {
 	Version int `json:"version"`
 	// Seed is the town's deterministic seed.
 	Seed int64 `json:"seed"`
-	// Width and Height are the grid dimensions in hex cells.
-	Width  int `json:"width"`
-	Height int `json:"height"`
+	// Radius is the radius of the town's hex grid, in cells.
+	Radius int `json:"radius"`
 	// Constraints are the player's placed requirements.
 	Constraints []SavedConstraint `json:"constraints"`
 }
@@ -183,8 +182,7 @@ func (s *Service) SaveTown(path string) error {
 	save := SaveFile{
 		Version:     saveVersion,
 		Seed:        s.town.Seed(),
-		Width:       s.town.width,
-		Height:      s.town.height,
+		Radius:      s.town.radius,
 		Constraints: make([]SavedConstraint, 0, len(s.town.constraints)),
 	}
 
@@ -242,11 +240,8 @@ func (s *Service) LoadTown(path string) error {
 	}
 
 	t := NewTown(save.Seed, s.rules)
-	if save.Width > 0 {
-		t.width = save.Width
-	}
-	if save.Height > 0 {
-		t.height = save.Height
+	if save.Radius > 0 {
+		t.radius = save.Radius
 	}
 
 	for _, c := range save.Constraints {

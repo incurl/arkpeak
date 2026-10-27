@@ -36,6 +36,16 @@ tasks:
       - npm run typecheck
       - npm run lint
 
+  bindings:
+    summary: Regenerates the TypeScript bindings from the Go services
+    description: |
+      Wails analyses the Go service methods and writes the matching
+      TypeScript into frontend/bindings. `wails3 dev` does this on every
+      start, so this task is only needed on a fresh clone or after
+      changing a service method's signature.
+    cmds:
+      - wails3 generate bindings -ts -i
+
   check:
     summary: Runs every check (Go tests, frontend typecheck and lint)
     cmds:

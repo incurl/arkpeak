@@ -18,11 +18,8 @@ export class TownState {
   /** The seed of the town this state mirrors. */
   public seed = 0;
 
-  /** The width of the town grid. */
-  public width = 0;
-
-  /** The height of the town grid. */
-  public height = 0;
+  /** The radius of the town's hex grid, in cells. */
+  public radius = 0;
 
   /** The tile types available in the ruleset. */
   public tiles: string[] = [];
@@ -33,8 +30,7 @@ export class TownState {
     this.colors.clear();
 
     this.seed = snapshot.seed;
-    this.width = snapshot.width;
-    this.height = snapshot.height;
+    this.radius = snapshot.radius;
     this.tiles = snapshot.tiles ?? [];
 
     for (const cell of snapshot.cells ?? []) {

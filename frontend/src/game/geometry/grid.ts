@@ -19,7 +19,10 @@ export const HEX_SIZE = 1.0;
 export const LAYER_HEIGHT = 1.6;
 
 /** The maximum jitter applied to a cell, as a fraction of the hex size. */
-export const JITTER_AMOUNT = 0.12;
+export const JITTER_AMOUNT = 0.1;
+
+/** The radius of the hex outline used for the ground and the hover marker. */
+export const HEX_RADIUS = HEX_SIZE * 0.94;
 
 /** The six axial direction vectors, matching the Go solver's order. */
 export const HEX_DIRECTIONS: readonly (readonly [number, number])[] = [
@@ -50,14 +53,18 @@ export function hexToWorld(q: number, r: number, layer: number): THREE.Vector3 {
  * The offset is derived from a hash of the cell's coordinates, so it is
  * stable across runs and across re-solves.
  */
-export function hexJitter(q: number, r: number, layer: number): THREE.Vector2 {
+export function hexJitter(q: number, r: number, layer: number): THREE.Vector3 {
   const h = hash3(q, r, layer);
   const angle = (h & 0xffff) * (Math.PI * 2) / 0x10000;
   const magnitude = ((h >>> 16) & 0xff) / 0xff;
 
-  return new THREE.Vector2(
-    Math.cos(angle) * magnitude * JITTER_AMOUNT * HEX_SIZE,
-    Math.sin(angle) * magnitude * JITTER_AMOUNT * HEX_SIZE,
+  const spread = magnitude * JITTER_AMOUNT * HEX_SIZE;
+  return new THREE.Vector3(
+    Math.cos(angle) * spread,
+    // The vertical jitter is smaller: a cell that bobs up and down reads as
+    // unstable rather than hand-placed.
+    Math.sin(angle) * spread * 0.35,
+    Math.sin(angle) * spread,
   );
 }
 
@@ -86,9 +93,7 @@ export function hash3(q: number, r: number, layer: number): number {
  * layer is not needed to find the cell, because the caller already knows
  * which layer's plane it intersected.
  */
-export function worldToHex(
-  point: THREE.Vector3,
-): { q: number; r: number } {
+export function worldToHex(point: THREE.Vector3): { q: number; r: number } {
   const qf =
     ((Math.sqrt(3) / 3) * point.x - (1 / 3) * point.z) / HEX_SIZE;
   const rf = ((2 / 3) * point.z) / HEX_SIZE;
@@ -118,9 +123,25 @@ export function axialRound(qf: number, rf: number): { q: number; r: number } {
 }
 
 /**
+ * Reports whether a cell lies within a hexagon of the given radius centred
+ * on the origin.
+ *
+ * This mirrors the Go solver's `wfc.InHexRegion`, so the frontend and the
+ * backend agree on where the island ends.
+ */
+export function inHexRegion(radius: number, q: number, r: number): boolean {
+  const dq = q;
+  const dr = r;
+  const ds = dq + dr;
+
+  const abs = (v: number): number => (v < 0 ? -v : v);
+  return (abs(dq) + abs(dr) + abs(ds)) / 2 <= radius;
+}
+
+/**
  * Builds the geometry of a single hex prism.
  *
- * The prism is a hexagonal cylinder of the given radius and height, centred
+ * The prism is a hexagonal column of the given radius and height, centred
  * on the origin in x and z and sitting on y = 0.
  */
 export function hexPrismGeometry(
@@ -135,15 +156,15 @@ export function hexPrismGeometry(
     1,
     false,
   );
-  // A CylinderGeometry is round; rotating by 30 degrees and scaling x
-  // produces a pointy-top hexagon of the right proportions.
+  // A CylinderGeometry is round; rotating by 30 degrees turns it into a
+  // pointy-top hexagon.
   geometry.rotateY(Math.PI / 6);
   geometry.translate(0, height / 2, 0);
   return geometry;
 }
 
 /**
- * Builds a flat hexagon, used for the ground and for water.
+ * Builds a flat hexagon, used for the ground and for the hover marker.
  */
 export function hexPlaneGeometry(radius: number): THREE.BufferGeometry {
   const geometry = new THREE.CircleGeometry(radius, 6);

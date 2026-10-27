@@ -1,6 +1,7 @@
 package wfc
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -133,5 +134,127 @@ func TestDirectionBetween(t *testing.T) {
 
 	if _, ok := directionBetween(origin, CellKey{Q: 9, R: 9}); ok {
 		t.Error("directionBetween reported a direction for non-adjacent cells")
+	}
+}
+
+func TestHexRegion(t *testing.T) {
+	tests := []struct {
+		radius int
+		want   int
+	}{
+		{0, 1},
+		{1, 7},
+		{2, 19},
+		{3, 37},
+		{24, 3*24*24 + 3*24 + 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("radius=%d", tt.radius), func(t *testing.T) {
+			keys := HexRegion(tt.radius)
+			if len(keys) != tt.want {
+				t.Errorf("HexRegion(%d) returned %d cells, want %d", tt.radius, len(keys), tt.want)
+			}
+
+			// Every cell must be inside the region, and no cell may
+			// appear twice.
+			seen := make(map[CellKey]bool, len(keys))
+			for _, k := range keys {
+				if !InHexRegion(tt.radius, k) {
+					t.Errorf("HexRegion(%d) returned %+v, which is outside the region", tt.radius, k)
+				}
+				if seen[k] {
+					t.Errorf("HexRegion(%d) returned %+v twice", tt.radius, k)
+				}
+				seen[k] = true
+			}
+
+			// The region must be centred: the origin is included and
+			// every cell is within the radius.
+			if !seen[CellKey{}] {
+				t.Errorf("HexRegion(%d) does not include the origin", tt.radius)
+			}
+		})
+	}
+}
+
+func TestHexRegionIsSymmetric(t *testing.T) {
+	const radius = 5
+	keys := HexRegion(radius)
+	seen := make(map[CellKey]bool, len(keys))
+	for _, k := range keys {
+		seen[k] = true
+	}
+
+	// Count how many neighbours each cell has outside the region.
+	//
+	// A hexagon of radius r has six corners, each with three neighbours
+	// outside, and 6(r-1) other edge cells, each with two. The interior
+	// cells have none.
+	outsideLinks := 0
+	cornerCells := 0
+	edgeCells := 0
+
+	for _, k := range keys {
+		out := 0
+		for d := Direction(0); d < dirCount; d++ {
+			if !seen[k.Neighbor(d)] {
+				out++
+			}
+		}
+		outsideLinks += out
+
+		switch out {
+		case 0:
+		case 2:
+			edgeCells++
+		case 3:
+			cornerCells++
+		default:
+			t.Errorf("cell %+v has %d neighbours outside the region, want 0, 2 or 3", k, out)
+		}
+
+		// If a cell's neighbour is inside the region, the cell must be
+		// inside it too.
+		for d := Direction(0); d < dirCount; d++ {
+			if seen[k.Neighbor(d)] && !InHexRegion(radius, k) {
+				t.Errorf("cell %+v is outside the region but its neighbour %+v is inside", k, k.Neighbor(d))
+			}
+		}
+	}
+
+	if want := 6; cornerCells != want {
+		t.Errorf("HexRegion(%d) has %d corner cells, want %d", radius, cornerCells, want)
+	}
+	if want := 6 * (radius - 1); edgeCells != want {
+		t.Errorf("HexRegion(%d) has %d edge cells, want %d", radius, edgeCells, want)
+	}
+	if want := 6*3 + 6*(radius-1)*2; outsideLinks != want {
+		t.Errorf("HexRegion(%d) has %d neighbour links leaving the region, want %d",
+			radius, outsideLinks, want)
+	}
+}
+
+func TestInHexRegion(t *testing.T) {
+	const radius = 3
+	tests := []struct {
+		key  CellKey
+		want bool
+	}{
+		{CellKey{}, true},
+		{CellKey{Q: 3, R: 0}, true},
+		{CellKey{Q: 4, R: 0}, false},
+		{CellKey{Q: 0, R: 3}, true},
+		{CellKey{Q: 0, R: 4}, false},
+		{CellKey{Q: -3, R: 0}, true},
+		{CellKey{Q: -4, R: 0}, false},
+		// The layer does not affect the footprint.
+		{CellKey{Q: 0, R: 0, Layer: 3}, true},
+	}
+
+	for _, tt := range tests {
+		if got := InHexRegion(radius, tt.key); got != tt.want {
+			t.Errorf("InHexRegion(%d, %+v) = %v, want %v", radius, tt.key, got, tt.want)
+		}
 	}
 }

@@ -19,6 +19,7 @@ import { Camera } from "./game/camera";
 import { Input } from "./game/input";
 import { Palette } from "./ui/palette";
 import { Hud } from "./ui/hud";
+import { verifyChunkPartition } from "./game/geometry/chunks";
 
 /** The canvas the game renders into. */
 function requireCanvas(): HTMLCanvasElement {
@@ -60,7 +61,15 @@ async function main(): Promise<void> {
   const hud = new Hud();
   const state = new TownState();
 
-  hud.setStatus("Generating town…");
+  // The chunk partition must be exact, or cells are silently dropped. The
+  // check is cheap and runs once, so it happens at startup.
+  const chunkProblem = verifyChunkPartition();
+  if (chunkProblem !== null) {
+    hud.setStatus(`Chunk partition is broken: ${chunkProblem}`);
+    throw new Error(chunkProblem);
+  }
+
+  hud.showWorking("Generating town…");
 
   let snapshot: TownSnapshot;
   try {
@@ -74,6 +83,7 @@ async function main(): Promise<void> {
 
   const scene = new Scene(canvas);
   const camera = new Camera(canvas, scene.camera);
+  camera.frameIsland(snapshot.radius);
 
   hud.setStatus(
     `${snapshot.cells?.length ?? 0} cells · seed ${snapshot.seed}`,
@@ -83,7 +93,9 @@ async function main(): Promise<void> {
   const palette = new Palette(
     document.getElementById("palette")!,
     snapshot.tiles ?? [],
+    snapshot.tileInfo ?? [],
   );
+  palette.setLayer(0);
   const input = new Input(canvas, scene, state, palette, hud, applyDiff);
 
   // The render loop.

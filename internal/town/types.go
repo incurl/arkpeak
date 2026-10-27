@@ -46,17 +46,27 @@ type GridDiff struct {
 	Seed int64 `json:"seed"`
 }
 
+// TileInfo describes a tile type the player can place.
+type TileInfo struct {
+	// ID is the stable string identifier of the tile, e.g. "wall".
+	ID string `json:"id"`
+	// Layer is the layer the tile belongs to, e.g. 0 for the ground.
+	Layer int `json:"layer"`
+}
+
 // TownSnapshot is the complete state of the town, used for the initial load.
 type TownSnapshot struct {
 	// Seed is the town's deterministic seed.
 	Seed int64 `json:"seed"`
-	// Width is the width of the town grid in hex cells.
-	Width int `json:"width"`
-	// Height is the height of the town grid in hex cells.
-	Height int `json:"height"`
+	// Radius is the radius of the town's hex grid, in cells.
+	Radius int `json:"radius"`
 	// Cells lists every settled cell in the town.
 	Cells []Cell `json:"cells"`
 	// Tiles lists the tile types available in the ruleset, so the frontend
 	// can build its palette without hard-coding tile names.
 	Tiles []string `json:"tiles"`
+	// TileInfo lists the tile types together with the layer each belongs
+	// to, so the frontend can offer only the tiles that are valid on the
+	// layer the player is pointing at.
+	TileInfo []TileInfo `json:"tileInfo"`
 }

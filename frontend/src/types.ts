@@ -18,10 +18,11 @@
 import type {
   Cell,
   GridDiff,
+  TileInfo,
   TownSnapshot,
 } from "../bindings/github.com/incurl/arkpeak/internal/town/models";
 
-export type { Cell, GridDiff, TownSnapshot };
+export type { Cell, GridDiff, TileInfo, TownSnapshot };
 
 /**
  * The tile types ArkPeak knows about.

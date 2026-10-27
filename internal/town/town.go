@@ -3,15 +3,16 @@ package town
 import (
 	"fmt"
 	"sort"
+	"strconv"
 
 	"github.com/incurl/arkpeak/internal/wfc"
 )
 
-// DefaultGridWidth is the width of a new town in hex cells.
-const DefaultGridWidth = 24
-
-// DefaultGridHeight is the height of a new town in hex cells.
-const DefaultGridHeight = 24
+// DefaultGridRadius is the radius of a new town's hex grid, in cells.
+//
+// The grid is a hexagon: 24 cells across, which gives 3*24² + 3*24 + 1 =
+// 1801 cells per layer.
+const DefaultGridRadius = 24
 
 // DefaultSolveRadius is how many cells around a change are re-solved when
 // the player places or removes a constraint.
@@ -26,9 +27,8 @@ type Town struct {
 	// constraints always produce the same town.
 	seed int64
 
-	// width and height are the grid dimensions in hex cells.
-	width  int
-	height int
+	// radius is the radius of the town's hex grid, in cells.
+	radius int
 
 	// rules is the compiled tile ruleset.
 	rules *wfc.Ruleset
@@ -50,8 +50,7 @@ type Town struct {
 func NewTown(seed int64, rules *wfc.Ruleset) *Town {
 	return &Town{
 		seed:        seed,
-		width:       DefaultGridWidth,
-		height:      DefaultGridHeight,
+		radius:      DefaultGridRadius,
 		rules:       rules,
 		cells:       make(map[wfc.CellKey]Cell),
 		constraints: make(map[wfc.CellKey]wfc.Constraint),
@@ -64,8 +63,8 @@ func (t *Town) Seed() int64 { return t.seed }
 // Rules returns the town's ruleset.
 func (t *Town) Rules() *wfc.Ruleset { return t.rules }
 
-// Size returns the town's grid dimensions.
-func (t *Town) Size() (width, height int) { return t.width, t.height }
+// Radius returns the radius of the town's hex grid.
+func (t *Town) Radius() int { return t.radius }
 
 // Cells returns a copy of the town's settled cells.
 func (t *Town) Cells() map[wfc.CellKey]Cell {
@@ -76,16 +75,15 @@ func (t *Town) Cells() map[wfc.CellKey]Cell {
 	return out
 }
 
-// gridKeys returns every position in the town's grid on the given layer.
+// gridKeys returns every position in the town's hex grid on the given layer.
 //
-// The grid is a rectangle in axial coordinates, which is not a true hexagon
-// shape, but it is a simple and predictable region to solve.
+// The grid is a hexagon centred on the origin, so that it reads as an island
+// rather than a skewed slab.
 func (t *Town) gridKeys(layer int) []wfc.CellKey {
-	keys := make([]wfc.CellKey, 0, t.width*t.height)
-	for q := 0; q < t.width; q++ {
-		for r := 0; r < t.height; r++ {
-			keys = append(keys, wfc.CellKey{Q: q, R: r, Layer: layer})
-		}
+	base := wfc.HexRegion(t.radius)
+	keys := make([]wfc.CellKey, len(base))
+	for i, k := range base {
+		keys[i] = wfc.CellKey{Q: k.Q, R: k.R, Layer: layer}
 	}
 	return keys
 }
@@ -223,8 +221,8 @@ func (t *Town) PlaceConstraint(key wfc.CellKey, tile, color string) (GridDiff, e
 	if key.Layer < 0 || key.Layer >= t.layerCount() {
 		return GridDiff{}, fmt.Errorf("layer %d is out of range (0..%d)", key.Layer, t.layerCount()-1)
 	}
-	if key.Q < 0 || key.Q >= t.width || key.R < 0 || key.R >= t.height {
-		return GridDiff{}, fmt.Errorf("cell %+v is outside the %dx%d grid", key, t.width, t.height)
+	if !wfc.InHexRegion(t.radius, key) {
+		return GridDiff{}, fmt.Errorf("cell %+v is outside the %d-cell-radius grid", key, t.radius)
 	}
 
 	// Record the constraint, remembering the order it was placed in so the
@@ -333,9 +331,12 @@ func (t *Town) tilesBelowLayer(layer int) map[wfc.CellKey]wfc.TileID {
 // regionKeysOnLayer returns the cells on one layer within radius of center.
 func (t *Town) regionKeysOnLayer(center wfc.CellKey, radius, layer int) []wfc.CellKey {
 	var keys []wfc.CellKey
-	for q := 0; q < t.width; q++ {
-		for r := 0; r < t.height; r++ {
+	for q := -t.radius; q <= t.radius; q++ {
+		for r := -t.radius; r <= t.radius; r++ {
 			k := wfc.CellKey{Q: q, R: r, Layer: layer}
+			if !wfc.InHexRegion(t.radius, k) {
+				continue
+			}
 			if wfc.InRadius(center, k, radius) {
 				keys = append(keys, k)
 			}
@@ -385,6 +386,23 @@ func sortCells(cells []Cell) {
 	})
 }
 
+// layerOf converts a tile's layer declaration into a layer index.
+//
+// A tile declares its layer as a string, because the ruleset is data and
+// the wildcard "*" means "any layer". A wildcard tile is reported as
+// layer -1, which the frontend reads as "offer it everywhere".
+func layerOf(layer string) int {
+	if layer == "" || layer == "*" {
+		return -1
+	}
+
+	n, err := strconv.Atoi(layer)
+	if err != nil {
+		return -1
+	}
+	return n
+}
+
 // Snapshot returns the full state of the town.
 func (t *Town) Snapshot() TownSnapshot {
 	cells := make([]Cell, 0, len(t.cells))
@@ -393,11 +411,24 @@ func (t *Town) Snapshot() TownSnapshot {
 	}
 	sortCells(cells)
 
+	// Describe every tile with the layer it belongs to, so the frontend
+	// can offer only the tiles that are valid where the player clicks.
+	tileIDs := t.rules.TileIDs()
+	info := make([]TileInfo, 0, len(tileIDs))
+	for _, id := range tileIDs {
+		tileID, ok := t.rules.Lookup(id)
+		if !ok {
+			continue
+		}
+		def := t.rules.Tile(tileID)
+		info = append(info, TileInfo{ID: def.ID, Layer: layerOf(def.Layer)})
+	}
+
 	return TownSnapshot{
-		Seed:   t.seed,
-		Width:  t.width,
-		Height: t.height,
-		Cells:  cells,
-		Tiles:  t.rules.TileIDs(),
+		Seed:     t.seed,
+		Radius:   t.radius,
+		Cells:    cells,
+		Tiles:    tileIDs,
+		TileInfo: info,
 	}
 }

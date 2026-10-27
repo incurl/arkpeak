@@ -128,6 +128,12 @@ body {
   color: #fff;
 }
 
+/* A tile that is not valid on the hovered layer is hidden entirely, so
+   the palette only ever offers placements the backend will accept. */
+.palette-button.is-hidden {
+  display: none;
+}
+
 .palette-swatch {
   width: 34px;
   height: 34px;

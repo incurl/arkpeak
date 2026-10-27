@@ -120,3 +120,53 @@ func AxialDistance(a, b CellKey) int {
 func InRadius(center, target CellKey, radius int) bool {
 	return AxialDistance(center, target) <= radius
 }
+
+// InHexRegion reports whether the cell lies within a hexagon of the given
+// radius centred on the origin.
+//
+// The layer is ignored: the region describes the grid's footprint, which is
+// the same on every layer.
+func InHexRegion(radius int, key CellKey) bool {
+	return AxialDistance(CellKey{}, key) <= radius
+}
+
+// HexRegion returns every cell within radius steps of the origin, forming a
+// hexagon centred on it.
+//
+// The town grid is hexagonal rather than rectangular: a rectangle in axial
+// coordinates is a rhombus on screen, which reads as a skewed slab rather
+// than an island. A hexagon has the shape players expect, and its edges
+// give the solver a natural boundary.
+func HexRegion(radius int) []CellKey {
+	if radius < 0 {
+		return nil
+	}
+
+	keys := make([]CellKey, 0, 3*radius*radius+3*radius+1)
+	for q := -radius; q <= radius; q++ {
+		// The r range is offset so that the region stays centred and
+		// hexagonal rather than sheared.
+		rMin := maxInt(-radius, -q-radius)
+		rMax := minInt(radius, -q+radius)
+		for r := rMin; r <= rMax; r++ {
+			keys = append(keys, CellKey{Q: q, R: r})
+		}
+	}
+	return keys
+}
+
+// maxInt returns the larger of two integers.
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+// minInt returns the smaller of two integers.
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}

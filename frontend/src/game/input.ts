@@ -6,7 +6,7 @@ import type { TownState } from "./state";
 import type { Palette } from "../ui/palette";
 import type { Hud } from "../ui/hud";
 import type { Scene } from "../render/scene";
-import { HEX_SIZE, hexToWorld, worldToHex } from "./geometry/grid";
+import { HEX_RADIUS, hexToWorld, inHexRegion, worldToHex } from "./geometry/grid";
 
 /** The number of layers the player can build on. */
 const LAYERS = 2;
@@ -61,7 +61,7 @@ export class Input {
 
   /** Builds the marker that shows the hovered cell. */
   private buildHoverMarker(): THREE.Mesh {
-    const geometry = new THREE.RingGeometry(HEX_SIZE * 0.86, HEX_SIZE * 0.98, 6);
+    const geometry = new THREE.RingGeometry(HEX_RADIUS * 0.86, HEX_RADIUS * 0.98, 6);
     geometry.rotateX(-Math.PI / 2);
     geometry.rotateY(Math.PI / 6);
 
@@ -107,7 +107,7 @@ export class Input {
       }
 
       const { q, r } = worldToHex(point);
-      if (q < 0 || r < 0 || q >= this.state.width || r >= this.state.height) {
+      if (!inHexRegion(this.state.radius, q, r)) {
         continue;
       }
 
@@ -128,6 +128,10 @@ export class Input {
     const position = hexToWorld(hit.q, hit.r, hit.layer);
     this.hoverMarker.position.set(position.x, position.y + 0.02, position.z);
     this.hoverMarker.visible = true;
+
+    // Only the tiles that belong to the hovered layer can be placed
+    // there, so the palette follows the pointer.
+    this.palette.setLayer(hit.layer);
   }
 
   /** Starts a click. */

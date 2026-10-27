@@ -103,7 +103,20 @@ export class Scene {
     if (this.town.group.parent !== this.scene) {
       this.scene.add(this.town.group);
     }
+    if (this.town.ground.parent !== this.scene) {
+      this.scene.add(this.town.ground);
+    }
     this.water.update(_dt);
+  }
+
+  /** The number of chunks currently rendered. */
+  public get chunkCount(): number {
+    return this.town.chunkCount;
+  }
+
+  /** The number of cells currently rendered. */
+  public get cellCount(): number {
+    return this.town.cellCount;
   }
 
   /** Renders a single frame. */
