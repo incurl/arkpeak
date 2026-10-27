@@ -20,3 +20,7 @@ bin/
 # `wails3 task icon` regenerates these from it.
 build/linux/icons/
 build/linux/icon.png
+
+# IDE files
+.idea/
+.vscode/
