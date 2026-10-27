@@ -67,6 +67,116 @@ func TestNewTownSolves(t *testing.T) {
 	}
 }
 
+// TestSnapshotDescribesTheRules checks that the snapshot carries everything
+// the renderer needs to build neighbour-aware geometry.
+//
+// The renderer must not restate the rules, so the connectors have to come
+// from the ruleset. If they are missing or wrong, the geometry silently
+// stops matching the town.
+func TestSnapshotDescribesTheRules(t *testing.T) {
+	rules := testRules(t)
+	service := NewService(rules, 12345)
+
+	snapshot, err := service.NewTown(12345)
+	if err != nil {
+		t.Fatalf("NewTown: %v", err)
+	}
+
+	// Every tile must be described, with its layer and its six edges.
+	if len(snapshot.TileInfo) != len(snapshot.Tiles) {
+		t.Errorf("TileInfo has %d entries, but there are %d tiles",
+			len(snapshot.TileInfo), len(snapshot.Tiles))
+	}
+
+	byID := make(map[string]TileInfo, len(snapshot.TileInfo))
+	for _, info := range snapshot.TileInfo {
+		byID[info.ID] = info
+	}
+
+	for _, id := range snapshot.Tiles {
+		info, ok := byID[id]
+		if !ok {
+			t.Errorf("the tile %q is not described", id)
+			continue
+		}
+
+		if len(info.Edges) != 6 {
+			t.Errorf("the tile %q has %d edges, want 6", id, len(info.Edges))
+		}
+		for _, name := range []string{"n", "ne", "se", "s", "sw", "nw"} {
+			if _, ok := info.Edges[name]; !ok {
+				t.Errorf("the tile %q is missing the edge %q", id, name)
+			}
+		}
+	}
+
+	// The connectors must be the ruleset's own, so the frontend and the
+	// solver agree on what may touch what.
+	if len(snapshot.Connectors) == 0 {
+		t.Fatal("the snapshot lists no connectors")
+	}
+
+	want := len(rules.ConnectorRules())
+	if len(snapshot.Connectors) != want {
+		t.Errorf("the snapshot has %d connectors, want %d", len(snapshot.Connectors), want)
+	}
+
+	// Every connector pair must be one the ruleset declares.
+	for _, rule := range snapshot.Connectors {
+		found := false
+		for _, original := range rules.ConnectorRules() {
+			if original.A == rule.A && original.B == rule.B && string(original.Axis) == rule.Axis {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("the snapshot has a connector the ruleset does not declare: %+v", rule)
+		}
+	}
+}
+
+// TestSnapshotTileInfoMatchesTheRuleset checks that the connectors in the
+// snapshot are the ruleset's, not a copy that could drift.
+func TestSnapshotTileInfoMatchesTheRuleset(t *testing.T) {
+	rules := testRules(t)
+	service := NewService(rules, 555)
+
+	snapshot, err := service.NewTown(555)
+	if err != nil {
+		t.Fatalf("NewTown: %v", err)
+	}
+
+	for _, info := range snapshot.TileInfo {
+		tileID, ok := rules.Lookup(info.ID)
+		if !ok {
+			t.Errorf("the snapshot describes an unknown tile %q", info.ID)
+			continue
+		}
+
+		def := rules.Tile(tileID)
+		for name, connector := range def.Edges {
+			if info.Edges[name] != connector {
+				t.Errorf("the tile %q has edge %q = %q in the snapshot, want %q",
+					info.ID, name, info.Edges[name], connector)
+			}
+		}
+
+		if info.Up != def.Up {
+			t.Errorf("the tile %q has up = %q in the snapshot, want %q",
+				info.ID, info.Up, def.Up)
+		}
+		if info.Down != def.Down {
+			t.Errorf("the tile %q has down = %q in the snapshot, want %q",
+				info.ID, info.Down, def.Down)
+		}
+		if info.Solid != def.Solid {
+			t.Errorf("the tile %q has solid = %v in the snapshot, want %v",
+				info.ID, info.Solid, def.Solid)
+		}
+	}
+}
+
 func TestNewTownIsDeterministic(t *testing.T) {
 	rules := testRules(t)
 

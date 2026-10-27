@@ -118,6 +118,10 @@ type Ruleset struct {
 	// layerTiles maps a layer key to the tiles valid on that layer. The
 	// special key anyLayerKey holds tiles valid on every layer.
 	layerTiles map[string][]TileID
+
+	// schema is the ruleset as it was declared, kept so that the
+	// connector table can be handed to the frontend unchanged.
+	schema RulesetSchema
 }
 
 // connectorPair is an ordered pair of connector values.
@@ -166,6 +170,7 @@ func CompileRuleset(schema RulesetSchema) (*Ruleset, error) {
 		hexConnectors: make(map[connectorPair]bool),
 		upConnectors:  make(map[connectorPair]bool),
 		layerTiles:    make(map[string][]TileID),
+		schema:        schema,
 	}
 
 	for i, def := range schema.Tiles {
@@ -322,6 +327,18 @@ func (r *Ruleset) TileIDs() []string {
 	for i, def := range r.Tiles {
 		out[i] = def.ID
 	}
+	return out
+}
+
+// ConnectorRules returns the connector compatibility table as it was
+// declared.
+//
+// The frontend needs it to decide which cells connect, and it must come
+// from the ruleset rather than be restated there, so the rules stay the
+// single source of truth.
+func (r *Ruleset) ConnectorRules() []ConnectorRule {
+	out := make([]ConnectorRule, 0, len(r.schema.Connectors))
+	out = append(out, r.schema.Connectors...)
 	return out
 }
 

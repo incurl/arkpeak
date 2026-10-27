@@ -102,9 +102,15 @@ export class Chunk {
   public readonly group = new THREE.Group();
 
   /**
-   * The meshes in this chunk, keyed by "q,r,layer".
+   * The cells this chunk covers, keyed by "q,r,layer".
+   *
+   * The chunk holds the cells' data, not their meshes: a cell's geometry
+   * depends on its neighbours, and a neighbour may live in another chunk.
    */
-  private readonly meshes = new Map<string, THREE.Mesh>();
+  private readonly cells = new Map<
+    string,
+    { key: { q: number; r: number; layer: number }; tile: string; color: string }
+  >();
 
   /** The signature of each cell, so unchanged cells are left alone. */
   private readonly signatures = new Map<string, string>();
@@ -116,8 +122,11 @@ export class Chunk {
   /**
    * Rebuilds the chunk from the given cells.
    *
+   * The chunk holds the cells' data, not their meshes. The renderer turns
+   * the data into geometry, because a cell's geometry depends on its
+   * neighbours, which may live in another chunk.
+   *
    * @param cells the cells this chunk covers, with their tile and colour.
-   * @param buildMesh creates the mesh for a cell.
    */
   public rebuild(
     cells: Iterable<{
@@ -125,13 +134,6 @@ export class Chunk {
       tile: string;
       color: string;
     }>,
-    buildMesh: (
-      tile: string,
-      color: string,
-      q: number,
-      r: number,
-      layer: number,
-    ) => THREE.Mesh,
   ): void {
     const seen = new Set<string>();
 
@@ -145,30 +147,32 @@ export class Chunk {
         continue;
       }
 
-      const mesh = buildMesh(cell.tile, cell.color, q, r, layer);
-      mesh.userData.signature = signature;
-
-      const existing = this.meshes.get(key);
-      if (existing !== undefined) {
-        this.group.remove(existing);
-      }
-      this.meshes.set(key, mesh);
+      this.cells.set(key, cell);
       this.signatures.set(key, signature);
-      this.group.add(mesh);
     }
 
     // Drop the cells that are no longer settled.
-    for (const [key, mesh] of this.meshes) {
+    for (const key of [...this.cells.keys()]) {
       if (!seen.has(key)) {
-        this.group.remove(mesh);
-        this.meshes.delete(key);
+        this.cells.delete(key);
         this.signatures.delete(key);
       }
     }
   }
 
-  /** The number of meshes in the chunk. */
+  /** The number of cells in the chunk. */
   public get size(): number {
-    return this.meshes.size;
+    return this.cells.size;
+  }
+
+  /**
+   * The cells this chunk covers.
+   */
+  public get cellList(): readonly {
+    key: { q: number; r: number; layer: number };
+    tile: string;
+    color: string;
+  }[] {
+    return [...this.cells.values()];
   }
 }

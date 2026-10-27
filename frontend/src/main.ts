@@ -20,6 +20,7 @@ import { Input } from "./game/input";
 import { Palette } from "./ui/palette";
 import { Hud } from "./ui/hud";
 import { verifyChunkPartition } from "./game/geometry/chunks";
+import { verifyConnectorTables } from "./game/geometry/neighbours";
 
 /** The canvas the game renders into. */
 function requireCanvas(): HTMLCanvasElement {
@@ -79,6 +80,19 @@ async function main(): Promise<void> {
   const scene = new Scene(canvas);
   const camera = new Camera(canvas, scene.camera);
   camera.frameIsland(snapshot.radius);
+
+  // The geometry is built from the ruleset's connectors, so the renderer
+  // knows which cells connect without restating the rules.
+  const connectorProblem = verifyConnectorTables(
+    snapshot.tileInfo ?? [],
+    snapshot.connectors ?? [],
+  );
+  if (connectorProblem !== null) {
+    hud.setStatus(`The ruleset is incomplete: ${connectorProblem}`);
+    throw new Error(connectorProblem);
+  }
+
+  scene.town.setRules(snapshot.tileInfo ?? [], snapshot.connectors ?? []);
 
   hud.setStatus(
     `${snapshot.cells?.length ?? 0} cells · seed ${snapshot.seed}`,

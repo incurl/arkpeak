@@ -491,8 +491,10 @@ func (t *Town) Snapshot() TownSnapshot {
 	}
 	sortCells(cells)
 
-	// Describe every tile with the layer it belongs to, so the frontend
-	// can offer only the tiles that are valid where the player clicks.
+	// Describe every tile with the layer it belongs to and the connectors
+	// on its edges, so the frontend can offer only the tiles that are
+	// valid where the player clicks and can build neighbour-aware
+	// geometry without restating the rules.
 	tileIDs := t.rules.TileIDs()
 	info := make([]TileInfo, 0, len(tileIDs))
 	for _, id := range tileIDs {
@@ -501,14 +503,33 @@ func (t *Town) Snapshot() TownSnapshot {
 			continue
 		}
 		def := t.rules.Tile(tileID)
-		info = append(info, TileInfo{ID: def.ID, Layer: layerOf(def.Layer)})
+		info = append(info, TileInfo{
+			ID:    def.ID,
+			Layer: layerOf(def.Layer),
+			Edges: def.Edges,
+			Up:    def.Up,
+			Down:  def.Down,
+			Solid: def.Solid,
+		})
+	}
+
+	// The connector table, so the renderer can decide which cells connect
+	// without restating the rules.
+	connectors := make([]ConnectorRule, 0, len(t.rules.ConnectorRules()))
+	for _, rule := range t.rules.ConnectorRules() {
+		connectors = append(connectors, ConnectorRule{
+			A:    rule.A,
+			B:    rule.B,
+			Axis: string(rule.Axis),
+		})
 	}
 
 	return TownSnapshot{
-		Seed:     t.seed,
-		Radius:   t.radius,
-		Cells:    cells,
-		Tiles:    tileIDs,
-		TileInfo: info,
+		Seed:       t.seed,
+		Radius:     t.radius,
+		Cells:      cells,
+		Tiles:      tileIDs,
+		TileInfo:   info,
+		Connectors: connectors,
 	}
 }

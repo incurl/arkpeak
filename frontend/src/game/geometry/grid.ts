@@ -137,38 +137,3 @@ export function inHexRegion(radius: number, q: number, r: number): boolean {
   const abs = (v: number): number => (v < 0 ? -v : v);
   return (abs(dq) + abs(dr) + abs(ds)) / 2 <= radius;
 }
-
-/**
- * Builds the geometry of a single hex prism.
- *
- * The prism is a hexagonal column of the given radius and height, centred
- * on the origin in x and z and sitting on y = 0.
- */
-export function hexPrismGeometry(
-  radius: number,
-  height: number,
-): THREE.BufferGeometry {
-  const geometry = new THREE.CylinderGeometry(
-    radius,
-    radius,
-    height,
-    6,
-    1,
-    false,
-  );
-  // A CylinderGeometry is round; rotating by 30 degrees turns it into a
-  // pointy-top hexagon.
-  geometry.rotateY(Math.PI / 6);
-  geometry.translate(0, height / 2, 0);
-  return geometry;
-}
-
-/**
- * Builds a flat hexagon, used for the ground and for the hover marker.
- */
-export function hexPlaneGeometry(radius: number): THREE.BufferGeometry {
-  const geometry = new THREE.CircleGeometry(radius, 6);
-  geometry.rotateX(-Math.PI / 2);
-  geometry.rotateY(Math.PI / 6);
-  return geometry;
-}

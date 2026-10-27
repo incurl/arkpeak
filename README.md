@@ -11,7 +11,7 @@ The name comes from **舟山** (Zhoushan): 舟 = boat/ark, 山 = peak/mountain.
 
 ## Status
 
-Milestones 1 through 4 are complete:
+Milestones 1 through 5 are complete:
 
 - **Milestone 1 — Wails v3 scaffold.** The app builds, runs, and the service
   bindings generate cleanly.
@@ -23,12 +23,11 @@ Milestones 1 through 4 are complete:
 - **Milestone 4 — building.** Clicking places a tile, the backend re-solves
   the neighbourhood, and the frontend applies the diff by rebuilding only the
   chunks that changed.
+- **Milestone 5 — procedural geometry.** The tiles are drawn as buildings:
+  walls that only show the faces they share, windows with panes, arches with
+  a passage through them, and pitched roofs over the buildings.
 
-Not yet done: neighbour-aware procedural meshes, props, and packaging.
-
-The renderer currently draws every settled cell as a coloured hexagonal
-prism. That is deliberate: the point of Milestone 5 is to make the geometry
-as good as the solving.
+Not yet done: props, and packaging.
 
 ### Trying it out
 
@@ -191,6 +190,32 @@ The frontend keeps a mirror of the backend's grid and a set of dirty chunks.
 Applying a diff marks the chunks that changed; the render loop drains that
 set, so a frame where nothing changed does no work at all. A click on a
 3602-cell town rebuilds one chunk, not forty.
+
+### The geometry follows the rules
+
+A tile is drawn according to what it is *and* what it touches. A wall only
+draws the faces it shares with another wall, so a building reads as a solid
+volume rather than as a stack of hexagons. A window adds a pane. An arch
+leaves a passage through the cell.
+
+Two different questions are answered separately:
+
+- **May these cells touch?** That is the solver's rule, and it comes
+  straight from the ruleset's connector table.
+- **Do they form a continuous surface?** That is the drawing rule, and it
+  needs both sides to declare a real connector. An arch, whose other sides
+  are wildcards, does not grow a wall towards an empty plot.
+
+The connectors are sent to the frontend with the snapshot, so the rules are
+never restated in TypeScript. They are checked at startup
+(`verifyConnectorTables`), because a mismatch would make the geometry stop
+matching the town, quietly.
+
+An upper storey is only drawn where the ground beneath it is solid. Without
+that, the whole island would be covered by a sheet of roof.
+
+The geometry is cached by tile and neighbour pattern, so the ~2300 cells of
+a town share about a hundred distinct geometries.
 
 ### Layers
 

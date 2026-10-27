@@ -25,6 +25,41 @@ import type {
 export type { Cell, GridDiff, TileInfo, TownSnapshot };
 
 /**
+ * The six directions of a hex cell, in the order the backend uses.
+ *
+ * The order matters: the backend's edge connectors are keyed by name, and
+ * the geometry code indexes them by direction.
+ */
+export const HEX_DIRECTION_NAMES = ["n", "ne", "se", "s", "sw", "nw"] as const;
+
+/** The name of one of the six hex directions. */
+export type DirectionName = (typeof HEX_DIRECTION_NAMES)[number];
+
+/** The connector on one side of a cell. */
+export type Connector = string;
+
+/** The edge connectors of a tile, keyed by direction name. */
+export type EdgeConnectors = Partial<Record<DirectionName, Connector>>;
+
+/**
+ * Looks up a tile's edge connectors.
+ *
+ * Returns undefined for a tile the ruleset does not know, which is how
+ * the renderer tells a settled tile from an unknown one.
+ */
+export function edgesOf(
+  tiles: readonly TileInfo[],
+  id: string,
+): EdgeConnectors | undefined {
+  for (const tile of tiles) {
+    if (tile.id === id) {
+      return tile.edges ?? {};
+    }
+  }
+  return undefined;
+}
+
+/**
  * The tile types ArkPeak knows about.
  *
  * These must match the tile ids in `internal/town/rules/town_rules.json`.

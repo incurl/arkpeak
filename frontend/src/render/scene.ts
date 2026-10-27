@@ -132,6 +132,15 @@ export class Scene {
     return this.townRenderer.cellCount;
   }
 
+  /**
+   * The town renderer.
+   *
+   * The rules the geometry is built from are set through it.
+   */
+  public get town(): TownRenderer {
+    return this.townRenderer;
+  }
+
   /** Renders a single frame. */
   public render(): void {
     this.renderer.render(this.scene, this.camera);
