@@ -1,10 +1,11 @@
 [Desktop Entry]
 Type=Application
-Name=arkpeak
+Name=ArkPeak
+GenericName=Town Builder
+Comment=A cozy procedural town-builder
 Exec=arkpeak
 Icon=arkpeak
-Categories=Development;
+Categories=Game;Simulation;
+Keywords=town;builder;procedural;wave function collapse;cozy;
 Terminal=false
-Keywords=wails
-Version=1.0
-StartupNotify=false
+StartupNotify=true

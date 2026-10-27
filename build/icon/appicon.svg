@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- The ArkPeak icon: a hex cell with a peak rising out of it.
+       This file is the editable source; make-icon.py renders it to PNG. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#cfdce0"/>
+      <stop offset="0.7" stop-color="#cfdce0"/>
+      <stop offset="1" stop-color="#8fb0bd"/>
+    </linearGradient>
+    <radialGradient id="sun">
+      <stop offset="0" stop-color="#fffaeb" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#fffaeb" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="reflection" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8fb0bd" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#8fb0bd" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#sky)"/>
+  <circle cx="235" cy="215" r="150" fill="url(#sun)"/>
+
+  <!-- The reflection of the cell on the water. -->
+  <polygon points="812,790 512,1046 212,790 512,534" fill="url(#reflection)"/>
+
+  <!-- The cell the peak stands on. -->
+  <polygon points="812,560 662,370 362,370 212,560 362,750 662,750"
+           fill="#f2ece0" stroke="#968e80" stroke-width="7"/>
+
+  <!-- The lit face of the peak. -->
+  <polygon points="362,690 518,170 590,399 518,690" fill="#e4bfb4"/>
+  <!-- The shadowed face. -->
+  <polygon points="518,170 662,690 518,690 590,399" fill="#bc8d84"/>
+  <!-- Snow on the summit. -->
+  <polygon points="518,170 590,399 562,233 486,266" fill="#f2ece0"/>
+
+  <!-- Trees. -->
+  <polygon points="300,613 267,700 333,700" fill="#c2cdb4"/>
+  <polygon points="300,572 273,632 327,632" fill="#aebe9c"/>
+  <polygon points="724,613 691,700 757,700" fill="#c2cdb4"/>
+  <polygon points="724,572 697,632 751,632" fill="#aebe9c"/>
+</svg>

@@ -8,14 +8,14 @@
   IgnorableNamespaces="uap3">
   
   <Identity 
-    Name="com.example.arkpeak"
-    Publisher="CN=My Company"
+    Name="com.incurl.arkpeak"
+    Publisher="CN=ArkPeak"
     Version="0.1.0.0" 
     ProcessorArchitecture="x64" />
   
   <Properties>
-    <DisplayName>My Product</DisplayName>
-    <PublisherDisplayName>My Company</PublisherDisplayName>
+    <DisplayName>ArkPeak</DisplayName>
+    <PublisherDisplayName>ArkPeak</PublisherDisplayName>
     <Description>A arkpeak application</Description>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
@@ -29,9 +29,9 @@
   </Resources>
   
   <Applications>
-    <Application Id="com.example.arkpeak" Executable="arkpeak" EntryPoint="Windows.FullTrustApplication">
+    <Application Id="com.incurl.arkpeak" Executable="arkpeak" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
-        DisplayName="My Product"
+        DisplayName="ArkPeak"
         Description="A arkpeak application"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"

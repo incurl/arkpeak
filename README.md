@@ -11,7 +11,7 @@ The name comes from **舟山** (Zhoushan): 舟 = boat/ark, 山 = peak/mountain.
 
 ## Status
 
-Milestones 1 through 6 are complete:
+Milestones 1 through 7 are complete:
 
 - **Milestone 1 — Wails v3 scaffold.** The app builds, runs, and the service
   bindings generate cleanly.
@@ -28,8 +28,8 @@ Milestones 1 through 6 are complete:
   a passage through them, and pitched roofs over the buildings.
 - **Milestone 6 — props.** The town is decorated with trees, shrubs,
   flowers, lamps, barrels and rocks.
-
-Not yet done: packaging.
+- **Milestone 7 — packaging.** The application has an icon, a desktop
+  entry, and installable packages for Linux, Windows and macOS.
 
 ### Trying it out
 
@@ -93,6 +93,29 @@ The `wails3` CLI must be on your `PATH`; the Taskfile shells out to it.
 npm run build --prefix frontend   # builds frontend/dist
 go build -o bin/arkpeak .         # embeds frontend/dist into the binary
 ```
+
+## Packaging
+
+```sh
+wails3 task package         # packages for the current platform
+wails3 task icon            # redraws the application icon
+wails3 task verify:package  # checks the build assets carry the right identity
+```
+
+On Linux this produces a `.deb`, an `.rpm` and an AppImage in `bin/`. The
+Windows build produces an NSIS installer and an MSIX package; the macOS
+build produces an `.app` bundle and a `.dmg`.
+
+The Wails scaffold ships with placeholder names — "My Company", "My
+Product", `com.example.arkpeak` — in every platform's build assets. Those
+are replaced with ArkPeak's own, and `wails3 task verify:package` fails if
+any of them come back.
+
+The application icon is drawn by `build/icon/make-icon.py` rather than by
+hand, so it can be redrawn at any size and changed with the game's
+palette. The script writes a 1024×1024 PNG and an editable SVG; the
+Windows `.ico`, the macOS `.icns` and the Linux icon sizes are derived
+from it.
 
 ## How it fits together
 

@@ -15,3 +15,8 @@ frontend/node_modules/
 frontend/dist/
 bin/
 *.town.json
+
+# Generated packaging assets. The source icon lives in build/icon/, and
+# `wails3 task icon` regenerates these from it.
+build/linux/icons/
+build/linux/icon.png

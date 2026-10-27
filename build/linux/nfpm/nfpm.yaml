@@ -7,22 +7,39 @@ name: "arkpeak"
 arch: ${GOARCH}
 platform: "linux"
 version: "0.1.0"
-section: "default"
-priority: "extra"
+section: "games"
+priority: "optional"
 maintainer: ${GIT_COMMITTER_NAME} <${GIT_COMMITTER_EMAIL}>
-description: "A arkpeak application"
-vendor: "My Company"
-homepage: "https://wails.io"
+description: |
+  ArkPeak is a cozy procedural town-builder: you place coloured blocks on
+  a grid and the town grows around them. The generation is driven by
+  Wave Function Collapse.
+vendor: "ArkPeak"
+homepage: "https://github.com/incurl/arkpeak"
 license: "MIT"
 release: "1"
 
 contents:
   - src: "./bin/arkpeak"
     dst: "/usr/local/bin/arkpeak"
-  - src: "./build/appicon.png"
+  - src: "./build/linux/icons/16x16.png"
+    dst: "/usr/share/icons/hicolor/16x16/apps/arkpeak.png"
+  - src: "./build/linux/icons/32x32.png"
+    dst: "/usr/share/icons/hicolor/32x32/apps/arkpeak.png"
+  - src: "./build/linux/icons/48x48.png"
+    dst: "/usr/share/icons/hicolor/48x48/apps/arkpeak.png"
+  - src: "./build/linux/icons/64x64.png"
+    dst: "/usr/share/icons/hicolor/64x64/apps/arkpeak.png"
+  - src: "./build/linux/icons/128x128.png"
     dst: "/usr/share/icons/hicolor/128x128/apps/arkpeak.png"
+  - src: "./build/linux/icons/256x256.png"
+    dst: "/usr/share/icons/hicolor/256x256/apps/arkpeak.png"
+  - src: "./build/linux/icons/512x512.png"
+    dst: "/usr/share/icons/hicolor/512x512/apps/arkpeak.png"
   - src: "./build/linux/arkpeak.desktop"
     dst: "/usr/share/applications/arkpeak.desktop"
+  - src: "./LICENSE"
+    dst: "/usr/share/doc/arkpeak/copyright"
 
 # Default dependencies for the GTK4 + WebKitGTK 6.0 stack (Ubuntu 24.04+ / Debian 13+)
 depends:

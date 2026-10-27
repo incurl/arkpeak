@@ -57,6 +57,39 @@ tasks:
     cmds:
       - task: "{{.GOOS}}:package"
 
+  icon:
+    summary: Redraws the application icon
+    desc: |
+      The icon is drawn by a script rather than by hand, so it can be
+      regenerated at any size and changed with the game's palette. The
+      PNG it writes is copied into the build assets, and the platform
+      icons are derived from it.
+    cmds:
+      - python3 build/icon/make-icon.py
+      - cp build/icon/appicon.png build/appicon.png
+      - python3 build/icon/make-platform-icons.py
+
+  verify:package:
+    summary: Checks that the build assets carry ArkPeak's identity
+    desc: |
+      The Wails scaffold ships with placeholder names such as "My Company"
+      and "My Product". This fails if any of them have come back, or if
+      the Linux desktop entry is not valid.
+    cmds:
+      - |
+        set -e
+        # The NSIS script mentions the placeholder names in its comments,
+        # as examples of what a build can override. Those are fine.
+        found=$(grep -rIl -e 'My Company' -e 'My Product' -e 'com.example.arkpeak' build/ \
+          --exclude-dir=node_modules 2>/dev/null | grep -v 'nsis/project.nsi' || true)
+        if [ -n "$found" ]; then
+          echo "the build assets still carry the scaffold's placeholder names:"
+          echo "$found"
+          exit 1
+        fi
+      - desktop-file-validate build/linux/arkpeak.desktop
+      - echo "the build assets look right"
+
   run:
     summary: Runs the application
     cmds:

@@ -131,7 +131,8 @@ tasks:
     deps:
       - task: build
     cmds:
-      - task: generate:dotdesktop
+      - task: generate:desktopfile
+      - task: generate:icons
       - task: generate:deb
 
   create:rpm:
@@ -139,7 +140,8 @@ tasks:
     deps:
       - task: build
     cmds:
-      - task: generate:dotdesktop
+      - task: generate:desktopfile
+      - task: generate:icons
       - task: generate:rpm
 
   create:aur:
@@ -147,23 +149,49 @@ tasks:
     deps:
       - task: build
     cmds:
-      - task: generate:dotdesktop
+      - task: generate:desktopfile
+      - task: generate:icons
       - task: generate:aur
 
   generate:deb:
     summary: Creates a deb package
     cmds:
       - wails3 tool package -name "{{.APP_NAME}}" -format deb -config ./build/linux/nfpm/nfpm.yaml -out {{.ROOT_DIR}}/bin
+    env:
+      # The packaging tool reads the maintainer from the environment. The
+      # task runner does not export the git committer by itself, so it is
+      # set here from the git config, falling back to the project's own
+      # values.
+      GIT_COMMITTER_NAME: '{{.MAINTAINER_NAME}}'
+      GIT_COMMITTER_EMAIL: '{{.MAINTAINER_EMAIL}}'
+    vars:
+      APP_NAME: '{{.APP_NAME}}'
+      MAINTAINER_NAME: '{{.MAINTAINER_NAME | default "ArkPeak"}}'
+      MAINTAINER_EMAIL: '{{.MAINTAINER_EMAIL | default "arkpeak@users.noreply.github.com"}}'
 
   generate:rpm:
     summary: Creates a rpm package
     cmds:
       - wails3 tool package -name "{{.APP_NAME}}" -format rpm -config ./build/linux/nfpm/nfpm.yaml -out {{.ROOT_DIR}}/bin
+    env:
+      GIT_COMMITTER_NAME: '{{.MAINTAINER_NAME}}'
+      GIT_COMMITTER_EMAIL: '{{.MAINTAINER_EMAIL}}'
+    vars:
+      APP_NAME: '{{.APP_NAME}}'
+      MAINTAINER_NAME: '{{.MAINTAINER_NAME | default "ArkPeak"}}'
+      MAINTAINER_EMAIL: '{{.MAINTAINER_EMAIL | default "arkpeak@users.noreply.github.com"}}'
 
   generate:aur:
     summary: Creates a arch linux packager package
     cmds:
       - wails3 tool package -name "{{.APP_NAME}}" -format archlinux -config ./build/linux/nfpm/nfpm.yaml -out {{.ROOT_DIR}}/bin
+    env:
+      GIT_COMMITTER_NAME: '{{.MAINTAINER_NAME}}'
+      GIT_COMMITTER_EMAIL: '{{.MAINTAINER_EMAIL}}'
+    vars:
+      APP_NAME: '{{.APP_NAME}}'
+      MAINTAINER_NAME: '{{.MAINTAINER_NAME | default "ArkPeak"}}'
+      MAINTAINER_EMAIL: '{{.MAINTAINER_EMAIL | default "arkpeak@users.noreply.github.com"}}'
 
   generate:dotdesktop:
     summary: Generates a `.desktop` file
@@ -175,8 +203,61 @@ tasks:
       APP_NAME: '{{.APP_NAME}}'
       EXEC: '{{.APP_NAME}}'
       ICON: '{{.APP_NAME}}'
-      CATEGORIES: 'Development;'
+      CATEGORIES: 'Game;'
       OUTPUTFILE: '{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop'
+
+  generate:desktopfile:
+    summary: Writes ArkPeak's `.desktop` file
+    desc: |
+      The generated file uses the Wails defaults: a lowercase name, the
+      "Development" category and "wails" as a keyword. This writes the
+      file the application should actually ship with.
+    cmds:
+      - |
+        cat > {{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop <<'DESKTOP'
+        [Desktop Entry]
+        Type=Application
+        Name=ArkPeak
+        GenericName=Town Builder
+        Comment=A cozy procedural town-builder
+        Exec={{.APP_NAME}}
+        Icon={{.APP_NAME}}
+        Categories=Game;Simulation;
+        Keywords=town;builder;procedural;wave function collapse;cozy;
+        Terminal=false
+        StartupNotify=true
+        DESKTOP
+    vars:
+      APP_NAME: '{{.APP_NAME}}'
+
+  generate:icons:
+    summary: Installs the application icon at the usual sizes
+    desc: |
+      The package puts the icon in a 128x128 directory, but the source
+      PNG is 1024x1024. A desktop entry asks for the icon by name and the
+      system picks the largest size it has, so the sizes have to be
+      generated rather than copied.
+    cmds:
+      - |
+        set -e
+        ICON_DIR={{.ROOT_DIR}}/build/linux/icons
+        mkdir -p "$ICON_DIR"
+        for size in 16 32 48 64 128 256 512; do
+          if command -v convert >/dev/null 2>&1; then
+            convert {{.ROOT_DIR}}/build/appicon.png -resize ${size}x${size} "$ICON_DIR/${size}x${size}.png"
+          else
+            python3 - "$size" <<'PYEOF'
+        import sys
+        from PIL import Image
+        size = int(sys.argv[1])
+        image = Image.open("{{.ROOT_DIR}}/build/appicon.png").convert("RGBA")
+        image.resize((size, size), Image.LANCZOS).save("{{.ROOT_DIR}}/build/linux/icons/%dx%d.png" % (size, size))
+        PYEOF
+          fi
+        done
+      - cp {{.ROOT_DIR}}/build/appicon.png {{.ROOT_DIR}}/build/linux/icon.png
+    vars:
+      APP_NAME: '{{.APP_NAME}}'
 
   run:
     cmds:

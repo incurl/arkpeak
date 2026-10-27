@@ -4,15 +4,15 @@
         <key>CFBundlePackageType</key>
             <string>APPL</string>
         <key>CFBundleName</key>
-            <string>My Product</string>
+            <string>ArkPeak</string>
         <key>CFBundleExecutable</key>
             <string>arkpeak</string>
         <key>CFBundleIdentifier</key>
-            <string>com.example.arkpeak</string>
+            <string>com.incurl.arkpeak</string>
         <key>CFBundleVersion</key>
             <string>0.1.0</string>
         <key>CFBundleGetInfoString</key>
-            <string>This is a comment</string>
+            <string>A cozy procedural town-builder, a homage to Townscaper</string>
         <key>CFBundleShortVersionString</key>
             <string>0.1.0</string>
         <key>CFBundleIconFile</key>
@@ -24,6 +24,6 @@
         <key>NSHighResolutionCapable</key>
             <string>true</string>
         <key>NSHumanReadableCopyright</key>
-            <string>© 2026, My Company</string>
+            <string>Copyright (c) 2026 incurl</string>
     </dict>
 </plist>

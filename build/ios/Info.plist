@@ -5,11 +5,11 @@
     <key>CFBundleExecutable</key>
     <string>arkpeak</string>
     <key>CFBundleIdentifier</key>
-    <string>com.example.arkpeak</string>
+    <string>com.incurl.arkpeak</string>
     <key>CFBundleName</key>
-    <string>My Product</string>
+    <string>ArkPeak</string>
     <key>CFBundleDisplayName</key>
-    <string>My Product</string>
+    <string>ArkPeak</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -49,7 +49,7 @@
     
     
     <key>NSHumanReadableCopyright</key>
-    <string>© 2026, My Company</string>
+    <string>Copyright (c) 2026 incurl</string>
     
     
     <key>CFBundleGetInfoString</key>

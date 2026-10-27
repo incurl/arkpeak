@@ -10,13 +10,13 @@
     <Installer
         Path="arkpeak"
         Arguments=""
-        InstallLocation="C:\Program Files\My Company\My Product">
+        InstallLocation="C:\Program Files\ArkPeak\ArkPeak">
     </Installer>
     <PackageInformation
-        PackageName="My Product"
-        PackageDisplayName="My Product"
-        PublisherName="CN=My Company"
-        PublisherDisplayName="My Company"
+        PackageName="ArkPeak"
+        PackageDisplayName="ArkPeak"
+        PublisherName="CN=ArkPeak"
+        PublisherDisplayName="ArkPeak"
         Version="0.1.0.0"
         PackageDescription="A arkpeak application">
         <Capabilities>
@@ -25,9 +25,9 @@
         </Capabilities>
         <Applications>
             <Application
-                Id="com.example.arkpeak"
+                Id="com.incurl.arkpeak"
                 Description="A arkpeak application"
-                DisplayName="My Product"
+                DisplayName="ArkPeak"
                 ExecutableName="arkpeak"
                 EntryPoint="Windows.FullTrustApplication">
                 
@@ -41,8 +41,8 @@
         </Dependencies>
         <Properties>
             <Framework>false</Framework>
-            <DisplayName>My Product</DisplayName>
-            <PublisherDisplayName>My Company</PublisherDisplayName>
+            <DisplayName>ArkPeak</DisplayName>
+            <PublisherDisplayName>ArkPeak</PublisherDisplayName>
             <Description>A arkpeak application</Description>
             <Logo>Assets\AppIcon.png</Logo>
         </Properties>

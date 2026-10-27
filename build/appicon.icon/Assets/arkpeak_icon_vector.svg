@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="100%" height="100%" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <g id="ArkPeak">
+        <!-- The hex cell the town is built on. -->
+        <path d="M812,560 L662,370 L362,370 L212,560 L362,750 L662,750 Z"
+              fill="#f2ece0" stroke="#968e80" stroke-width="14"/>
+        <!-- The lit face of the peak. -->
+        <path d="M362,690 L518,170 L590,399 L518,690 Z" fill="#e4bfb4"/>
+        <!-- The shadowed face. -->
+        <path d="M518,170 L662,690 L518,690 L590,399 Z" fill="#bc8d84"/>
+        <!-- Snow on the summit. -->
+        <path d="M518,170 L590,399 L562,233 L488,266 Z" fill="#f2ece0"/>
+        <!-- Trees. -->
+        <path d="M300,613 L267,700 L333,700 Z" fill="#c2cdb4"/>
+        <path d="M300,572 L273,632 L327,632 Z" fill="#aebe9c"/>
+        <path d="M724,613 L691,700 L757,700 Z" fill="#c2cdb4"/>
+        <path d="M724,572 L697,632 L751,632 Z" fill="#aebe9c"/>
+    </g>
+</svg>

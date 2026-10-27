@@ -5,11 +5,11 @@
 	"info": {
 		"0409": {
 			"ProductVersion": "0.1.0",
-			"CompanyName": "My Company",
-			"FileDescription": "A arkpeak application",
-			"LegalCopyright": "© 2026, My Company",
-			"ProductName": "My Product",
-			"Comments": "This is a comment"
+			"CompanyName": "ArkPeak",
+			"FileDescription": "A cozy procedural town-builder",
+			"LegalCopyright": "Copyright (c) 2026 incurl",
+			"ProductName": "ArkPeak",
+			"Comments": "A cozy procedural town-builder, a homage to Townscaper"
 		}
 	}
 }
