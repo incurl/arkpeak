@@ -9,6 +9,17 @@ generation is driven by **Wave Function Collapse**, running in Go.
 
 The name comes from **舟山** (Zhoushan): 舟 = boat/ark, 山 = peak/mountain.
 
+## The companion book
+
+[`docs/book/`](docs/book/00-preface.md) is a long-form companion to this
+codebase, written for someone who is new to both Wave Function Collapse and
+Wails. It explains Townscaper and the ideas behind it, then works through
+the ArkPeak implementation: the solver, the hex grid, the rules language,
+the Wails boundary and the renderer. It also covers the five real bugs in
+this codebase and what each one teaches.
+
+Start at [the preface](docs/book/00-preface.md).
+
 ## Status
 
 Milestones 1 through 7 are complete:
