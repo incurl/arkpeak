@@ -48,12 +48,7 @@ async function loadInitialTown(): Promise<TownSnapshot> {
 
 /** Applies a diff from the backend to the local mirror. */
 function applyDiff(state: TownState, diff: GridDiff): void {
-  for (const cell of diff.removed ?? []) {
-    state.remove(cell.q, cell.r, cell.layer);
-  }
-  for (const cell of diff.settled ?? []) {
-    state.set(cell.q, cell.r, cell.layer, cell.tile, cell.color);
-  }
+  state.applyDiff(diff);
 }
 
 async function main(): Promise<void> {
@@ -89,13 +84,17 @@ async function main(): Promise<void> {
     `${snapshot.cells?.length ?? 0} cells · seed ${snapshot.seed}`,
   );
 
+  // Build the whole town once, before the first frame. After this the
+  // renderer only touches the chunks that change.
+  scene.update(0, state);
+
   // The palette drives what gets placed when the player clicks.
   const palette = new Palette(
     document.getElementById("palette")!,
     snapshot.tiles ?? [],
     snapshot.tileInfo ?? [],
   );
-  palette.setLayer(0);
+  palette.showLayer(0);
   const input = new Input(canvas, scene, state, palette, hud, applyDiff);
 
   // The render loop.

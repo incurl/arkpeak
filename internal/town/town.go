@@ -194,22 +194,80 @@ func (t *Town) constraintList() []wfc.Constraint {
 
 // applyResult writes a solver result into the town, preserving the player's
 // colours.
+//
+// Only a constrained cell is coloured: the colour comes from the constraint
+// the player placed, and the solver carries it through the solve. A cell
+// without a constraint takes the default colour, which is what a cell whose
+// constraint has just been removed falls back to.
+//
+// A cell that is not part of the solved region is not touched at all, so
+// its colour survives untouched.
 func (t *Town) applyResult(result map[wfc.CellKey]wfc.ResultCell) {
 	for key, res := range result {
-		color := res.Color
-		if color == "" {
-			if existing, ok := t.cells[key]; ok {
-				color = existing.Color
-			}
-		}
 		t.cells[key] = Cell{
 			Q:     key.Q,
 			R:     key.R,
 			Layer: key.Layer,
 			Tile:  res.Tile,
-			Color: color,
+			Color: res.Color,
 		}
 	}
+}
+
+// CanPlace reports whether a tile could be placed on a cell, and explains
+// why not.
+//
+// The frontend calls this before sending a placement, so the player gets a
+// plain explanation rather than a solver error. The checks mirror the ones
+// the solver makes: the tile must belong to the layer, and the cell below
+// must be able to support it.
+//
+// This is a necessary check, not a sufficient one. The solver may still
+// fail to satisfy a placement, because the tile also has to fit with its
+// neighbours.
+func (t *Town) CanPlace(key wfc.CellKey, tile string) (bool, string) {
+	tileID, ok := t.rules.Lookup(tile)
+	if !ok {
+		return false, fmt.Sprintf("there is no %q tile", tile)
+	}
+
+	if key.Layer < 0 || key.Layer >= t.layerCount() {
+		return false, fmt.Sprintf("there is no layer %d", key.Layer)
+	}
+
+	if !wfc.InHexRegion(t.radius, key) {
+		return false, "that is outside the island"
+	}
+
+	// The tile must belong to the layer.
+	valid := false
+	for _, t2 := range t.rules.TilesForLayer(key.Layer) {
+		if t2 == tileID {
+			valid = true
+			break
+		}
+	}
+	if !valid {
+		return false, fmt.Sprintf("a %s does not belong on layer %d", tile, key.Layer)
+	}
+
+	// The cell below must be able to support the tile. Only a tile on
+	// layer 1 or above has something below it.
+	if key.Layer > 0 {
+		below, ok := t.cells[wfc.CellKey{Q: key.Q, R: key.R, Layer: key.Layer - 1}]
+		if ok {
+			lowerTile, ok := t.rules.Lookup(below.Tile)
+			if ok {
+				lowerUp := t.rules.UpConnector(lowerTile)
+				tileDown := t.rules.DownConnector(tileID)
+				if !t.rules.UpConnectorsMatch(lowerUp, tileDown) {
+					return false, fmt.Sprintf("a %s needs something to stand on", tile)
+				}
+			}
+		}
+	}
+
+	return true, ""
 }
 
 // PlaceConstraint places a player constraint and re-solves the affected
@@ -228,23 +286,45 @@ func (t *Town) PlaceConstraint(key wfc.CellKey, tile, color string) (GridDiff, e
 	// Record the constraint, remembering the order it was placed in so the
 	// town can be rebuilt exactly.
 	_, replacing := t.constraints[key]
+	previous, hadPrevious := t.constraints[key]
 	t.constraints[key] = wfc.Constraint{Key: key, Tile: tile, Color: color}
 	if !replacing {
 		t.order = append(t.order, key)
 	}
-	return t.resolveAround(key, DefaultSolveRadius)
+
+	diff, err := t.resolveAround(key, DefaultSolveRadius)
+	if err != nil {
+		// The placement could not be satisfied. Roll the constraint
+		// back, so a failed attempt does not poison the town: it must
+		// not survive into a save file or into the next re-solve.
+		if hadPrevious {
+			t.constraints[key] = previous
+		} else {
+			delete(t.constraints, key)
+			t.removeFromOrder(key)
+		}
+		return GridDiff{}, err
+	}
+
+	return diff, nil
+}
+
+// removeFromOrder removes a key from the order the constraints were placed
+// in.
+func (t *Town) removeFromOrder(key wfc.CellKey) {
+	for i, k := range t.order {
+		if k == key {
+			t.order = append(t.order[:i], t.order[i+1:]...)
+			return
+		}
+	}
 }
 
 // RemoveConstraint removes a player constraint and re-solves the affected
 // region. It returns the cells that changed.
 func (t *Town) RemoveConstraint(key wfc.CellKey) (GridDiff, error) {
 	delete(t.constraints, key)
-	for i, k := range t.order {
-		if k == key {
-			t.order = append(t.order[:i], t.order[i+1:]...)
-			break
-		}
-	}
+	t.removeFromOrder(key)
 	return t.resolveAround(key, DefaultSolveRadius)
 }
 

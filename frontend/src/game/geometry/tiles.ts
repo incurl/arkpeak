@@ -3,7 +3,7 @@ import * as THREE from "three";
 import type { TownState } from "../state";
 import { colorByName } from "../../render/palette";
 import { HEX_RADIUS, hexJitter, hexToWorld, hexPrismGeometry } from "./grid";
-import { Chunk, chunkKey, chunkOf } from "./chunks";
+import { Chunk } from "./chunks";
 
 /**
  * The tile renderer.
@@ -38,56 +38,55 @@ export class TownRenderer {
   /** The radius of the island, in cells. */
   private radius = 0;
 
-  /** The cells of the town, grouped by chunk. */
-  private readonly cellsByChunk = new Map<
-    string,
-    { key: { q: number; r: number; layer: number }; tile: string; color: string }[]
-  >();
-
   /**
-   * Rebuilds the town from the mirrored state.
+   * Rebuilds the chunks that have changed.
    *
-   * Only the chunks whose contents changed are rebuilt, so a diff of a few
-   * cells does not mean redrawing the whole town.
+   * @param state the mirrored state.
+   * @returns the number of chunks that were rebuilt.
    */
-  public rebuild(state: TownState): void {
+  public rebuildDirty(state: TownState): number {
     if (state.radius !== this.radius) {
       this.radius = state.radius;
       this.rebuildGround();
     }
 
-    this.cellsByChunk.clear();
-    for (const entry of state.entries()) {
-      const { q, r } = entry.key;
-      const coord = chunkOf(q, r);
-      const key = chunkKey(coord.cq, coord.cr);
+    const dirty = state.drainDirtyChunks();
+    for (const key of dirty) {
+      this.rebuildChunk(key, state);
+    }
+    this.dropEmptyChunks(state);
+    return dirty.length;
+  }
 
-      let bucket = this.cellsByChunk.get(key);
-      if (bucket === undefined) {
-        bucket = [];
-        this.cellsByChunk.set(key, bucket);
-      }
-      bucket.push({ key: entry.key, tile: entry.tile, color: entry.color });
+  /**
+   * Rebuilds a single chunk from the state's current cells.
+   */
+  private rebuildChunk(key: string, state: TownState): void {
+    const [cq, cr] = key.split(",").map(Number);
+
+    let chunk = this.chunks.get(key);
+    if (chunk === undefined) {
+      chunk = new Chunk({ cq, cr });
+      this.chunks.set(key, chunk);
+      this.group.add(chunk.group);
     }
 
-    // Rebuild the chunks that are present.
-    for (const [key, cells] of this.cellsByChunk) {
-      let chunk = this.chunks.get(key);
-      if (chunk === undefined) {
-        const [cq, cr] = key.split(",").map(Number);
-        chunk = new Chunk({ cq, cr });
-        this.chunks.set(key, chunk);
-        this.group.add(chunk.group);
-      }
-      chunk.rebuild(cells, this.buildMesh.bind(this));
-    }
+    chunk.rebuild(state.cellsInChunk(cq, cr), this.buildMesh.bind(this));
+  }
 
-    // Drop the chunks that no longer have any cells.
+  /**
+   * Removes the chunks that hold no cells any more.
+   */
+  private dropEmptyChunks(state: TownState): void {
     for (const [key, chunk] of this.chunks) {
-      if (!this.cellsByChunk.has(key)) {
-        this.group.remove(chunk.group);
-        this.chunks.delete(key);
+      if (chunk.size > 0) {
+        continue;
       }
+      if (state.hasCellsInChunk(key)) {
+        continue;
+      }
+      this.group.remove(chunk.group);
+      this.chunks.delete(key);
     }
   }
 

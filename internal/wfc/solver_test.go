@@ -123,6 +123,138 @@ func assertValidConfiguration(t *testing.T, rules *Ruleset, result map[CellKey]R
 	}
 }
 
+// TestPreferredTilesSurviveReSolve checks that a cell which would like to
+// keep its tile actually keeps it.
+//
+// This is the guarantee a regional re-solve rests on: placing a block
+// somewhere must not quietly reshape the neighbourhood around it. The
+// preference used to be applied as a weight boost, which left a small
+// chance of the cell changing on every re-solve. Over the many re-solves
+// of a play session, that was enough to slowly rewrite the town.
+//
+// The tiles in the test ruleset all have the same weight, so a change
+// here cannot be explained by the weights.
+func TestPreferredTilesSurviveReSolve(t *testing.T) {
+	rules := testRuleset(t)
+	region := rectRegion(5, 5, 0)
+
+	first := NewSolver(rules, 4242)
+	first.SetRegion(region)
+	if err := first.Solve(); err != nil {
+		t.Fatalf("Solve: %v", err)
+	}
+	original := first.Result()
+
+	// Re-solve the same region, asking every cell to keep its tile.
+	second := NewSolver(rules, 4242)
+	second.SetRegion(region)
+	for key, cell := range original {
+		tile, ok := rules.Lookup(cell.Tile)
+		if !ok {
+			t.Fatalf("result contains unknown tile %q", cell.Tile)
+		}
+		second.KeepCell(key, tile)
+	}
+	if err := second.Solve(); err != nil {
+		t.Fatalf("Solve: %v", err)
+	}
+	repeat := second.Result()
+
+	for key, cell := range original {
+		if repeat[key].Tile != cell.Tile {
+			t.Errorf("cell %+v changed from %q to %q despite being preferred",
+				key, cell.Tile, repeat[key].Tile)
+		}
+	}
+}
+
+// TestPreferredTilesAreRespectedAcrossManySeeds checks the same guarantee
+// over many different seeds.
+//
+// A single seed could pass by luck. The guarantee has to hold whatever
+// the town looks like.
+func TestPreferredTilesAreRespectedAcrossManySeeds(t *testing.T) {
+	rules := testRuleset(t)
+	region := rectRegion(5, 5, 0)
+
+	for seed := int64(1); seed <= 20; seed++ {
+		first := NewSolver(rules, seed)
+		first.SetRegion(region)
+		if err := first.Solve(); err != nil {
+			t.Fatalf("seed %d: Solve: %v", seed, err)
+		}
+		original := first.Result()
+
+		second := NewSolver(rules, seed)
+		second.SetRegion(region)
+		for key, cell := range original {
+			tile, _ := rules.Lookup(cell.Tile)
+			second.KeepCell(key, tile)
+		}
+		if err := second.Solve(); err != nil {
+			t.Fatalf("seed %d: Solve: %v", seed, err)
+		}
+		repeat := second.Result()
+
+		for key, cell := range original {
+			if repeat[key].Tile != cell.Tile {
+				t.Errorf("seed %d: cell %+v changed from %q to %q despite being preferred",
+					seed, key, cell.Tile, repeat[key].Tile)
+			}
+		}
+	}
+}
+
+// TestPreferredTileIsGivenUpWhenImpossible checks that the guarantee has a
+// limit: a cell must be allowed to change when keeping its tile would make
+// the solve impossible.
+//
+// If a cell could never change, the player could paint the town into a
+// corner and no placement would ever work again.
+func TestPreferredTileIsGivenUpWhenImpossible(t *testing.T) {
+	rules := testRuleset(t)
+	region := rectRegion(3, 3, 0)
+
+	// Solve a region and remember what it looks like.
+	first := NewSolver(rules, 7)
+	first.SetRegion(region)
+	if err := first.Solve(); err != nil {
+		t.Fatalf("Solve: %v", err)
+	}
+	original := first.Result()
+
+	// Pin every cell to a tile that cannot be next to its neighbour, but
+	// ask the solver to keep the original tiles as well. The keep request
+	// must not stop the solve from noticing the contradiction.
+	second := NewSolver(rules, 7)
+	second.SetRegion(region)
+
+	for key, cell := range original {
+		tile, _ := rules.Lookup(cell.Tile)
+		second.KeepCell(key, tile)
+	}
+
+	// Now force a contradiction: two adjacent cells pinned to roof, which
+	// cannot sit next to a wall.
+	keys := region
+	second.FixCell(keys[0], mustLookup(t, rules, "roof"))
+	second.FixCell(keys[1], mustLookup(t, rules, "roof"))
+
+	if err := second.Solve(); err == nil {
+		t.Error("expected a contradiction between the two pinned roofs")
+	}
+}
+
+// mustLookup resolves a tile id, failing the test if it does not exist.
+func mustLookup(t *testing.T, rules *Ruleset, id string) TileID {
+	t.Helper()
+	tile, ok := rules.Lookup(id)
+	if !ok {
+		t.Fatalf("the ruleset has no tile %q", id)
+	}
+	return tile
+}
+
 // TestSolve5x5WithConstraints is the Milestone 2 acceptance test: a small
 // grid with a few constraints must solve to a valid configuration that
 // honours every constraint.

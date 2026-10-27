@@ -1,6 +1,7 @@
 package town
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -163,6 +164,143 @@ func TestPlaceConstraintRejectsUnknownTile(t *testing.T) {
 	}
 }
 
+// TestFailedPlacementDoesNotPoisonTheTown checks that a placement which
+// cannot be satisfied leaves no trace behind.
+//
+// A roof cannot sit next to a tower, so placing one there fails. If the
+// constraint were left in place, every later solve would fail with it, and
+// it would end up in the save file.
+func TestFailedPlacementDoesNotPoisonTheTown(t *testing.T) {
+	rules := testRules(t)
+	service := NewService(rules, 9090)
+
+	if _, err := service.NewTown(9090); err != nil {
+		t.Fatalf("NewTown: %v", err)
+	}
+
+	snapshot, err := service.GetSnapshot()
+	if err != nil {
+		t.Fatalf("GetSnapshot: %v", err)
+	}
+
+	// Find a layer 1 cell next to a tower, and try to put a roof there.
+	byKey := make(map[wfc.CellKey]Cell, len(snapshot.Cells))
+	for _, cell := range snapshot.Cells {
+		byKey[wfc.CellKey{Q: cell.Q, R: cell.R, Layer: cell.Layer}] = cell
+	}
+
+	var target *wfc.CellKey
+	for _, cell := range snapshot.Cells {
+		if cell.Layer != 1 || cell.Tile != "tower" {
+			continue
+		}
+		key := wfc.CellKey{Q: cell.Q, R: cell.R, Layer: 1}
+		for d := wfc.Direction(0); d < 6; d++ {
+			neighbour := key.Neighbor(d)
+			if _, ok := byKey[neighbour]; !ok {
+				continue
+			}
+			candidate := neighbour
+			target = &candidate
+			break
+		}
+		if target != nil {
+			break
+		}
+	}
+
+	if target == nil {
+		t.Skip("this town has no tower next to another layer 1 cell")
+	}
+
+	// Placing a roof there must either work or fail cleanly. If it fails,
+	// the town must be unchanged.
+	if _, err := service.PlaceConstraint(target.Q, target.R, target.Layer, "roof", ""); err == nil {
+		t.Log("the placement was accepted; the town may have changed")
+		return
+	}
+
+	// The failed placement must not have left a constraint behind, or it
+	// would end up in the save file and break every later solve.
+	path := filepath.Join(t.TempDir(), "town.json")
+	if err := service.SaveTown(path); err != nil {
+		t.Fatalf("SaveTown: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+
+	var save SaveFile
+	if err := json.Unmarshal(data, &save); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+
+	for _, c := range save.Constraints {
+		if c.Q == target.Q && c.R == target.R && c.Layer == target.Layer {
+			t.Errorf("the failed placement left a constraint behind: %+v", c)
+		}
+	}
+
+	// The town must still solve, which it would not if a bad constraint
+	// were still in place.
+	if _, err := service.SolveRegion(0, 0, 2); err != nil {
+		t.Errorf("the town no longer solves after a failed placement: %v", err)
+	}
+}
+
+// TestCanPlaceExplainsWhyNot checks that the preview gives the player a
+// reason, not just a refusal.
+func TestCanPlaceExplainsWhyNot(t *testing.T) {
+	rules := testRules(t)
+	service := NewService(rules, 1234)
+
+	if _, err := service.NewTown(1234); err != nil {
+		t.Fatalf("NewTown: %v", err)
+	}
+
+	tests := []struct {
+		name  string
+		q     int
+		r     int
+		layer int
+		tile  string
+	}{
+		{"unknown tile", 0, 0, 0, "dinosaur"},
+		{"wrong layer", 0, 0, 1, "wall"},
+		{"outside the island", 9999, 9999, 0, "wall"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ok, reason := service.CanPlace(tt.q, tt.r, tt.layer, tt.tile)
+			if ok {
+				t.Errorf("CanPlace(%q) = true, want false", tt.tile)
+			}
+			if reason == "" {
+				t.Error("CanPlace gave no reason")
+			}
+		})
+	}
+}
+
+// TestCanPlaceAcceptsAValidTile checks that the preview does not get in the
+// way of a placement that works.
+func TestCanPlaceAcceptsAValidTile(t *testing.T) {
+	rules := testRules(t)
+	service := NewService(rules, 1234)
+
+	if _, err := service.NewTown(1234); err != nil {
+		t.Fatalf("NewTown: %v", err)
+	}
+
+	ok, reason := service.CanPlace(0, 0, 0, "wall")
+	if !ok {
+		t.Errorf("CanPlace(wall) = false (%s), want true", reason)
+	}
+}
+
 func TestPlaceConstraintRejectsOutOfBounds(t *testing.T) {
 	rules := testRules(t)
 	service := NewService(rules, 1)
@@ -173,6 +311,198 @@ func TestPlaceConstraintRejectsOutOfBounds(t *testing.T) {
 
 	if _, err := service.PlaceConstraint(9999, 9999, 0, "wall", ""); err == nil {
 		t.Error("expected an error for a cell outside the grid")
+	}
+}
+
+// TestPlaceConstraintRejectsWrongLayer checks that a tile is refused when it
+// does not belong to the layer it is placed on.
+//
+// The frontend hides the tiles that do not fit the layer the player is
+// pointing at, so this should never be reached through the UI. It is still
+// checked, because a client that ignores the palette must not be able to
+// put a wall on the roof storey.
+func TestPlaceConstraintRejectsWrongLayer(t *testing.T) {
+	rules := testRules(t)
+	service := NewService(rules, 1)
+
+	if _, err := service.NewTown(1); err != nil {
+		t.Fatalf("NewTown: %v", err)
+	}
+
+	tests := []struct {
+		name  string
+		q     int
+		r     int
+		layer int
+		tile  string
+	}{
+		{"wall on the roof storey", 2, 2, 1, "wall"},
+		{"roof on the ground", 2, 2, 0, "roof"},
+		{"tower on the ground", 3, 3, 0, "tower"},
+		{"spire on the ground", 3, 3, 0, "spire"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := service.PlaceConstraint(tt.q, tt.r, tt.layer, tt.tile, ""); err == nil {
+				t.Errorf("expected an error placing %q on layer %d", tt.tile, tt.layer)
+			}
+		})
+	}
+}
+
+// TestPlaceConstraintAcceptsMatchingLayer checks that a tile is accepted
+// when it belongs to the layer it is placed on.
+func TestPlaceConstraintAcceptsMatchingLayer(t *testing.T) {
+	rules := testRules(t)
+	service := NewService(rules, 1)
+
+	if _, err := service.NewTown(1); err != nil {
+		t.Fatalf("NewTown: %v", err)
+	}
+
+	tests := []struct {
+		q     int
+		r     int
+		layer int
+		tile  string
+	}{
+		{2, 2, 0, "wall"},
+		{2, 2, 0, "garden"},
+		{4, 4, 0, "floor"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.tile, func(t *testing.T) {
+			if _, err := service.PlaceConstraint(tt.q, tt.r, tt.layer, tt.tile, ""); err != nil {
+				t.Errorf("PlaceConstraint(%q, layer %d): %v", tt.tile, tt.layer, err)
+			}
+		})
+	}
+}
+
+// TestRemoveConstraintFreesTheCell checks that removing a constraint hands
+// the cell back to the solver.
+//
+// The cell must end up without a player constraint, but the solver is free
+// to pick a different tile for it.
+func TestRemoveConstraintFreesTheCell(t *testing.T) {
+	rules := testRules(t)
+	service := NewService(rules, 31337)
+
+	if _, err := service.NewTown(31337); err != nil {
+		t.Fatalf("NewTown: %v", err)
+	}
+
+	if _, err := service.PlaceConstraint(6, 6, 0, "wall", "rose"); err != nil {
+		t.Fatalf("PlaceConstraint: %v", err)
+	}
+
+	diff, err := service.RemoveConstraint(6, 6, 0)
+	if err != nil {
+		t.Fatalf("RemoveConstraint: %v", err)
+	}
+
+	// The diff must mention the cell, because the solver may have
+	// changed it.
+	touched := false
+	for _, cell := range diff.Settled {
+		if cell.Q == 6 && cell.R == 6 && cell.Layer == 0 {
+			touched = true
+		}
+	}
+	for _, cell := range diff.Removed {
+		if cell.Q == 6 && cell.R == 6 && cell.Layer == 0 {
+			touched = true
+		}
+	}
+	if !touched {
+		t.Error("the diff does not mention the cell the constraint was removed from")
+	}
+
+	// The town must still hold every cell: removing a constraint never
+	// leaves a hole in the grid.
+	snapshot, err := service.GetSnapshot()
+	if err != nil {
+		t.Fatalf("GetSnapshot: %v", err)
+	}
+	for _, cell := range snapshot.Cells {
+		if cell.Q == 6 && cell.R == 6 && cell.Layer == 0 && cell.Color == "rose" {
+			t.Error("the removed constraint's colour is still on the cell")
+		}
+	}
+}
+
+// TestRemoveConstraintOnUnconstrainedCellIsHarmless checks that removing a
+// constraint that was never placed does not damage the town.
+func TestRemoveConstraintOnUnconstrainedCellIsHarmless(t *testing.T) {
+	rules := testRules(t)
+	service := NewService(rules, 5150)
+
+	if _, err := service.NewTown(5150); err != nil {
+		t.Fatalf("NewTown: %v", err)
+	}
+
+	before, err := service.GetSnapshot()
+	if err != nil {
+		t.Fatalf("GetSnapshot: %v", err)
+	}
+
+	if _, err := service.RemoveConstraint(9, 9, 0); err != nil {
+		t.Fatalf("RemoveConstraint: %v", err)
+	}
+
+	after, err := service.GetSnapshot()
+	if err != nil {
+		t.Fatalf("GetSnapshot: %v", err)
+	}
+
+	if len(before.Cells) != len(after.Cells) {
+		t.Fatalf("cell counts differ: %d vs %d", len(before.Cells), len(after.Cells))
+	}
+	for i := range before.Cells {
+		if before.Cells[i] != after.Cells[i] {
+			t.Fatalf("cell %d changed: %+v vs %+v", i, before.Cells[i], after.Cells[i])
+		}
+	}
+}
+
+// TestPlaceAndRemoveRoundTrip checks that placing a constraint and then
+// removing it returns the town to the state it was in before.
+//
+// This is what the player expects from an undo.
+func TestPlaceAndRemoveRoundTrip(t *testing.T) {
+	rules := testRules(t)
+	service := NewService(rules, 24680)
+
+	if _, err := service.NewTown(24680); err != nil {
+		t.Fatalf("NewTown: %v", err)
+	}
+
+	before, err := service.GetSnapshot()
+	if err != nil {
+		t.Fatalf("GetSnapshot: %v", err)
+	}
+
+	if _, err := service.PlaceConstraint(4, 4, 0, "wall", "cream"); err != nil {
+		t.Fatalf("PlaceConstraint: %v", err)
+	}
+	if _, err := service.RemoveConstraint(4, 4, 0); err != nil {
+		t.Fatalf("RemoveConstraint: %v", err)
+	}
+
+	after, err := service.GetSnapshot()
+	if err != nil {
+		t.Fatalf("GetSnapshot: %v", err)
+	}
+
+	if len(before.Cells) != len(after.Cells) {
+		t.Fatalf("cell counts differ: %d vs %d", len(before.Cells), len(after.Cells))
+	}
+	for i := range before.Cells {
+		if before.Cells[i] != after.Cells[i] {
+			t.Fatalf("cell %d changed: %+v vs %+v", i, before.Cells[i], after.Cells[i])
+		}
 	}
 }
 

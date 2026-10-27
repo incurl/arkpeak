@@ -21,11 +21,14 @@ export class Scene {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene: THREE.Scene;
   private readonly water: Water;
-  private readonly town: TownRenderer;
+  private readonly townRenderer: TownRenderer;
 
   private width = 1;
   private height = 1;
   private readonly resizeObserver: ResizeObserver;
+
+  /** The number of chunks rebuilt by the last update. */
+  private lastRebuild = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({
@@ -51,7 +54,7 @@ export class Scene {
     this.water = new Water();
     this.scene.add(this.water.mesh);
 
-    this.town = new TownRenderer();
+    this.townRenderer = new TownRenderer();
 
     // The canvas may not have been laid out when the scene is created, so
     // the size is tracked with an observer rather than read once.
@@ -97,26 +100,36 @@ export class Scene {
 
   /**
    * Rebuilds the town geometry from the mirrored state.
+   *
+   * Only the chunks that changed are rebuilt, so a click that touches a
+   * handful of cells does not redraw the whole town. On the frames where
+   * nothing changed this does no work at all.
    */
   public update(_dt: number, state: TownState): void {
-    this.town.rebuild(state);
-    if (this.town.group.parent !== this.scene) {
-      this.scene.add(this.town.group);
+    this.lastRebuild = this.townRenderer.rebuildDirty(state);
+
+    if (this.townRenderer.group.parent !== this.scene) {
+      this.scene.add(this.townRenderer.group);
     }
-    if (this.town.ground.parent !== this.scene) {
-      this.scene.add(this.town.ground);
+    if (this.townRenderer.ground.parent !== this.scene) {
+      this.scene.add(this.townRenderer.ground);
     }
     this.water.update(_dt);
   }
 
+  /** The number of chunks rebuilt by the last update. */
+  public get lastRebuildCount(): number {
+    return this.lastRebuild;
+  }
+
   /** The number of chunks currently rendered. */
   public get chunkCount(): number {
-    return this.town.chunkCount;
+    return this.townRenderer.chunkCount;
   }
 
   /** The number of cells currently rendered. */
   public get cellCount(): number {
-    return this.town.cellCount;
+    return this.townRenderer.cellCount;
   }
 
   /** Renders a single frame. */

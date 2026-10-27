@@ -11,6 +11,35 @@ import (
 // solver reached a cell with no valid tile remaining.
 var ErrContradiction = errors.New("wfc: constraints are contradictory")
 
+// ConflictError reports two tiles that cannot sit next to each other.
+//
+// It carries the two tiles rather than only describing them, so that a
+// caller can explain the problem in its own terms. The player does not need
+// cell coordinates; they need to know which buildings clash.
+type ConflictError struct {
+	// First is the id of the first tile.
+	First string
+	// Second is the id of the second tile.
+	Second string
+	// FirstKey is the position of the first cell.
+	FirstKey CellKey
+	// SecondKey is the position of the second cell.
+	SecondKey CellKey
+}
+
+// Error implements the error interface.
+func (e *ConflictError) Error() string {
+	return fmt.Sprintf(
+		"wfc: constraints are contradictory: cells %+v (%s) and %+v (%s) cannot touch",
+		e.FirstKey, e.First, e.SecondKey, e.Second,
+	)
+}
+
+// Unwrap makes errors.Is(err, ErrContradiction) true for a conflict.
+func (e *ConflictError) Unwrap() error {
+	return ErrContradiction
+}
+
 // Constraint is a player-placed requirement that a specific cell must hold a
 // specific tile.
 //
@@ -452,8 +481,12 @@ func (s *Solver) checkSettledPair(aKey CellKey, aTile TileID, bKey CellKey, bTil
 		aConn := s.rules.EdgeConnector(aTile, d)
 		bConn := s.rules.EdgeConnector(bTile, d.Opposite())
 		if !s.rules.HexConnectorsMatch(aConn, bConn) {
-			return fmt.Errorf("%w: cells %+v (%s) and %+v (%s) cannot touch",
-				ErrContradiction, aKey, s.rules.Tile(aTile).ID, bKey, s.rules.Tile(bTile).ID)
+			return &ConflictError{
+				First:     s.rules.Tile(aTile).ID,
+				Second:    s.rules.Tile(bTile).ID,
+				FirstKey:  aKey,
+				SecondKey: bKey,
+			}
 		}
 		return nil
 	}
@@ -512,10 +545,19 @@ func (s *Solver) prune(neighbourKey CellKey, nc *cell, otherKey CellKey, otherTi
 			if !nc.has(tile) {
 				continue
 			}
-			if !s.rules.HexConnectorsMatch(otherConn, s.rules.EdgeConnector(tile, d.Opposite())) {
-				nc.candidates &^= tileMask(tile)
-				removed = true
+			if s.rules.HexConnectorsMatch(otherConn, s.rules.EdgeConnector(tile, d.Opposite())) {
+				continue
 			}
+			if nc.preferredSet && nc.preferred == tile {
+				// The cell would rather keep this tile than be
+				// replaced by a wildcard one that matches every
+				// neighbour. It is given up only if it is the last
+				// candidate left, because then the cell would have no
+				// tile at all.
+				continue
+			}
+			nc.candidates &^= tileMask(tile)
+			removed = true
 		}
 		return removed
 	}
@@ -532,10 +574,14 @@ func (s *Solver) prune(neighbourKey CellKey, nc *cell, otherKey CellKey, otherTi
 			if !nc.has(tile) {
 				continue
 			}
-			if !s.rules.UpConnectorsMatch(lowerUp, s.rules.DownConnector(tile)) {
-				nc.candidates &^= tileMask(tile)
-				removed = true
+			if s.rules.UpConnectorsMatch(lowerUp, s.rules.DownConnector(tile)) {
+				continue
 			}
+			if nc.preferredSet && nc.preferred == tile {
+				continue
+			}
+			nc.candidates &^= tileMask(tile)
+			removed = true
 		}
 	case neighbourKey.Layer == otherKey.Layer-1:
 		// otherKey is above neighbourKey, so the constraint is inverted.
@@ -545,10 +591,14 @@ func (s *Solver) prune(neighbourKey CellKey, nc *cell, otherKey CellKey, otherTi
 			if !nc.has(tile) {
 				continue
 			}
-			if !s.rules.UpConnectorsMatch(s.rules.UpConnector(tile), upperDown) {
-				nc.candidates &^= tileMask(tile)
-				removed = true
+			if s.rules.UpConnectorsMatch(s.rules.UpConnector(tile), upperDown) {
+				continue
 			}
+			if nc.preferredSet && nc.preferred == tile {
+				continue
+			}
+			nc.candidates &^= tileMask(tile)
+			removed = true
 		}
 	}
 
@@ -624,6 +674,17 @@ func (s *Solver) Collapse(key CellKey) error {
 		return nil
 	}
 
+	// A cell that would like to keep its tile keeps it outright, as long as
+	// it is still a candidate. Rolling the dice here would leave a small
+	// chance of the cell changing on every re-solve, which would slowly
+	// reshape the town while the player did nothing.
+	if c.preferredSet && c.has(c.preferred) {
+		c.candidates = tileMask(c.preferred)
+		c.settled = true
+		c.collapsed = c.preferred
+		return nil
+	}
+
 	// The weight of a tile that the cell would like to keep is boosted, so
 	// a regional re-solve leaves the neighbourhood alone unless it has to
 	// change something.
@@ -658,6 +719,11 @@ func (s *Solver) Collapse(key CellKey) error {
 const preferredBoost = 1000
 
 // weightFor returns the selection weight of a tile for the given cell.
+//
+// A cell that would like to keep its tile gets a large boost, so that a
+// regional re-solve leaves the neighbourhood alone unless it has to change
+// something. The boost is large enough to dominate every other weight in
+// the ruleset, which makes the choice effectively certain.
 func (s *Solver) weightFor(c *cell, t TileID) int {
 	w := s.rules.Tile(t).Weight
 	if c.preferredSet && c.preferred == t {

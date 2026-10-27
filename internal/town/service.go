@@ -2,6 +2,7 @@ package town
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -97,9 +98,50 @@ func (s *Service) PlaceConstraint(q, r, layer int, tileType string, color string
 	key := wfc.CellKey{Q: q, R: r, Layer: layer}
 	diff, err := s.town.PlaceConstraint(key, tileType, color)
 	if err != nil {
-		return GridDiff{}, err
+		return GridDiff{}, explain(err)
 	}
 	return diff, nil
+}
+
+// explain turns a solver error into something a player can act on.
+//
+// The solver's errors are precise about *why* a placement failed, but they
+// read like a stack trace. A player needs to know what to do next.
+//
+// The solver's contradiction error carries the two tiles involved, so the
+// message can be rebuilt from them rather than by scraping the error text.
+func explain(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	var conflict *wfc.ConflictError
+	if errors.As(err, &conflict) {
+		return fmt.Errorf(
+			"that does not fit: a %s cannot sit next to a %s",
+			conflict.First,
+			conflict.Second,
+		)
+	}
+
+	return err
+}
+
+// CanPlace reports whether a tile could be placed on a cell.
+//
+// The frontend calls this before sending a placement, so that the player is
+// told what is wrong in their own terms instead of receiving a solver
+// error. The two reasons a placement can fail are that the tile does not
+// belong to the layer, and that the cell below cannot support it.
+func (s *Service) CanPlace(q, r, layer int, tileType string) (bool, string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.town == nil {
+		return false, "no town has been created yet"
+	}
+
+	return s.town.CanPlace(wfc.CellKey{Q: q, R: r, Layer: layer}, tileType)
 }
 
 // RemoveConstraint removes the constraint on a cell and re-solves the
@@ -115,7 +157,7 @@ func (s *Service) RemoveConstraint(q, r, layer int) (GridDiff, error) {
 	key := wfc.CellKey{Q: q, R: r, Layer: layer}
 	diff, err := s.town.RemoveConstraint(key)
 	if err != nil {
-		return GridDiff{}, err
+		return GridDiff{}, explain(err)
 	}
 	return diff, nil
 }

@@ -134,6 +134,38 @@ body {
   display: none;
 }
 
+/* One group per layer. The active layer's group is the one the player
+   is building on, and its tiles are the ones that can be placed. */
+.palette-layer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.palette-layer.is-hidden {
+  display: none;
+}
+
+.palette-sublabel {
+  width: 100%;
+  margin: 0 0 2px;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--muted, #8b8172);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-align: left;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.palette-sublabel.is-active {
+  color: var(--ink);
+}
+
 .palette-swatch {
   width: 34px;
   height: 34px;
