@@ -1,0 +1,148 @@
+/*
+ * ArkPeak styles.
+ *
+ * The visual direction is cozy and soft: muted pastels, warm light, low
+ * contrast between the UI and the world. The palette values live in
+ * `src/render/palette.ts`; this file only styles the chrome around the
+ * canvas.
+ */
+
+:root {
+  --ink: #3d3a44;
+  --ink-soft: #6b6572;
+  --panel: rgba(252, 248, 242, 0.92);
+  --panel-border: rgba(120, 105, 90, 0.22);
+  --accent: #b5745a;
+  --shadow: 0 6px 24px rgba(60, 50, 40, 0.16);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #9fb8c4;
+  color: var(--ink);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#viewport {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+#hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  padding: 20px 24px;
+}
+
+#hud-header {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 12px 18px;
+  width: fit-content;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(6px);
+}
+
+#hud-header h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+#hud-status {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+#palette {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(6px);
+}
+
+.palette-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.palette-label {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.palette-button {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+
+.palette-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(60, 50, 40, 0.14);
+}
+
+.palette-button.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.palette-swatch {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.palette-swatch:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(60, 50, 40, 0.14);
+}
+
+.palette-swatch.is-active {
+  box-shadow: 0 0 0 2px var(--accent);
+}
